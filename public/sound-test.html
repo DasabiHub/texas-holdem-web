@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>音效试听</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0d2b1e; color: #fff; font-family: -apple-system, sans-serif; padding: 28px 20px 48px; }
+h1 { color: #FFD700; font-size: 20px; margin-bottom: 6px; }
+.hint { font-size: 12px; color: #666; margin-bottom: 28px; }
+.section { margin-bottom: 32px; }
+.section-title { font-size: 13px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; border-left: 3px solid #FFD700; padding-left: 8px; }
+.section-note { font-size: 11px; color: #555; margin-bottom: 10px; padding-left: 11px; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+button {
+  padding: 9px 14px; border: 1px solid rgba(255,255,255,.15);
+  border-radius: 10px; background: rgba(255,255,255,.07);
+  color: #ccc; font-size: 13px; cursor: pointer; transition: all .15s;
+  white-space: nowrap;
+}
+button:hover { background: rgba(255,255,255,.15); color: #fff; }
+button.playing { background: rgba(76,175,80,.35); border-color: #4CAF50; color: #fff; }
+.src-kenney { border-color: rgba(255,200,100,.2); }
+.src-kenney:hover { border-color: rgba(255,200,100,.5); }
+.src-oga    { border-color: rgba(100,180,255,.2); }
+.src-oga:hover    { border-color: rgba(100,180,255,.5); }
+.src-wood   { border-color: rgba(180,120,80,.3); }
+.src-wood:hover   { border-color: rgba(180,120,80,.7); }
+.legend { display: flex; gap: 16px; margin-bottom: 24px; font-size: 11px; color: #666; flex-wrap: wrap; }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+<body>
+<h1>🃏 音效试听</h1>
+<div class="hint">点击按钮试听，确定后告诉我选哪个，我来更新代码。</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:rgba(255,200,100,.8)"></span> Kenney Casino（当前游戏已有）</span>
+  <span><span class="dot" style="background:rgba(180,120,80,.8)"></span> Kenney Impact / Mixkit（木质敲击 CC0）</span>
+</div>
+
+<div class="section">
+  <div class="section-title">发牌音效</div>
+  <div class="btns" id="btns-deal"></div>
+</div>
+
+<div class="section">
+  <div class="section-title">过牌（Check）敲桌音效</div>
+  <div class="section-note">* 实际会连播两次模拟敲桌两下，间隔 220ms</div>
+  <div class="btns" id="btns-check"></div>
+</div>
+
+<script>
+const DEAL = [
+  // Kenney（当前游戏已有）
+  { label: '滑牌 1', file: '/sounds/card-slide-1.ogg', src: 'kenney' },
+  { label: '滑牌 2', file: '/sounds/card-slide-2.ogg', src: 'kenney' },
+  { label: '滑牌 3', file: '/sounds/card-slide-3.ogg', src: 'kenney' },
+  { label: '滑牌 4', file: '/sounds/card-slide-4.ogg', src: 'kenney' },
+  { label: '滑牌 5', file: '/sounds/card-slide-5.ogg', src: 'kenney' },
+  { label: '滑牌 6', file: '/sounds/card-slide-6.ogg', src: 'kenney' },
+  { label: '滑牌 7', file: '/sounds/card-slide-7.ogg', src: 'kenney' },
+  { label: '滑牌 8', file: '/sounds/card-slide-8.ogg', src: 'kenney' },
+  { label: '扇牌 1', file: '/sounds/card-fan-1.ogg',   src: 'kenney' },
+  { label: '扇牌 2', file: '/sounds/card-fan-2.ogg',   src: 'kenney' },
+  // OpenGameArt CC0
+  { label: '出牌(OGA)', file: '/sounds/new/oga-playcard.wav', src: 'oga' },
+  { label: '摸牌(OGA)', file: '/sounds/new/oga-draw.wav',     src: 'oga' },
+];
+
+const CHECK = [
+  // Mixkit（敲木）
+  { label: 'Mixkit 木敲',    file: '/sounds/preview/check-mixkit-woodhit.mp3',  src: 'wood' },
+  { label: 'Mixkit 敲木 2',  file: '/sounds/preview/check-mixkit-knockwood.mp3', src: 'wood' },
+  // Kenney Casino（当前游戏已有）
+  { label: 'Casino 落牌 1', file: '/sounds/preview/check-kenney-1.ogg', src: 'kenney' },
+  { label: 'Casino 落牌 2', file: '/sounds/preview/check-kenney-2.ogg', src: 'kenney' },
+  { label: 'Casino 落牌 3', file: '/sounds/preview/check-kenney-3.ogg', src: 'kenney' },
+  { label: 'Casino 落牌 4', file: '/sounds/preview/check-kenney-4.ogg', src: 'kenney' },
+  // Kenney Impact Sounds — 木质轻击 (CC0)
+  { label: '木轻 0', file: '/sounds/preview/check-kenney-impact-impactWood_light-0.ogg', src: 'wood' },
+  { label: '木轻 1', file: '/sounds/preview/check-kenney-impact-impactWood_light-1.ogg', src: 'wood' },
+  { label: '木轻 2', file: '/sounds/preview/check-kenney-impact-impactWood_light-2.ogg', src: 'wood' },
+  { label: '木轻 3', file: '/sounds/preview/check-kenney-impact-impactWood_light-3.ogg', src: 'wood' },
+  { label: '木轻 4', file: '/sounds/preview/check-kenney-impact-impactWood_light-4.ogg', src: 'wood' },
+  // Kenney Impact Sounds — 木质中击 (CC0)
+  { label: '木中 0', file: '/sounds/preview/check-kenney-impact-impactWood_medium-0.ogg', src: 'wood' },
+  { label: '木中 1', file: '/sounds/preview/check-kenney-impact-impactWood_medium-1.ogg', src: 'wood' },
+  { label: '木中 2', file: '/sounds/preview/check-kenney-impact-impactWood_medium-2.ogg', src: 'wood' },
+  { label: '木中 3', file: '/sounds/preview/check-kenney-impact-impactWood_medium-3.ogg', src: 'wood' },
+  { label: '木中 4', file: '/sounds/preview/check-kenney-impact-impactWood_medium-4.ogg', src: 'wood' },
+  // Kenney Impact Sounds — 木质重击 (CC0)
+  { label: '木重 0', file: '/sounds/preview/check-kenney-impact-impactWood_heavy-0.ogg', src: 'wood' },
+  { label: '木重 1', file: '/sounds/preview/check-kenney-impact-impactWood_heavy-1.ogg', src: 'wood' },
+  { label: '木重 2', file: '/sounds/preview/check-kenney-impact-impactWood_heavy-2.ogg', src: 'wood' },
+  { label: '木重 3', file: '/sounds/preview/check-kenney-impact-impactWood_heavy-3.ogg', src: 'wood' },
+  { label: '木重 4', file: '/sounds/preview/check-kenney-impact-impactWood_heavy-4.ogg', src: 'wood' },
+  // Kenney Impact Sounds — 通用轻击 (CC0)
+  { label: '通用轻 0', file: '/sounds/preview/check-kenney-impact-impactGeneric_light-0.ogg', src: 'wood' },
+  { label: '通用轻 1', file: '/sounds/preview/check-kenney-impact-impactGeneric_light-1.ogg', src: 'wood' },
+  { label: '通用轻 2', file: '/sounds/preview/check-kenney-impact-impactGeneric_light-2.ogg', src: 'wood' },
+  // Kenney Impact Sounds — 木地板踏步（偏空洞）(CC0)
+  { label: '木踏 0', file: '/sounds/preview/check-kenney-impact-footstep_wood-0.ogg', src: 'wood' },
+  { label: '木踏 1', file: '/sounds/preview/check-kenney-impact-footstep_wood-1.ogg', src: 'wood' },
+  { label: '木踏 2', file: '/sounds/preview/check-kenney-impact-footstep_wood-2.ogg', src: 'wood' },
+];
+
+let _actx = null;
+function actx() {
+  if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_actx.state === 'suspended') _actx.resume();
+  return _actx;
+}
+
+const BUFS = {};
+async function loadBuf(file) {
+  if (BUFS[file]) return BUFS[file];
+  const res = await fetch(file);
+  BUFS[file] = await actx().decodeAudioData(await res.arrayBuffer());
+  return BUFS[file];
+}
+
+function playBuf(buf) {
+  const ctx = actx();
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const g = ctx.createGain();
+  g.gain.value = 0.75;
+  src.connect(g);
+  g.connect(ctx.destination);
+  src.start();
+}
+
+async function play(file, btn, isDouble) {
+  try {
+    const buf = await loadBuf(file);
+    playBuf(buf);
+    if (isDouble) setTimeout(() => playBuf(buf), 220);
+    btn.classList.add('playing');
+    setTimeout(() => btn.classList.remove('playing'), isDouble ? 550 : 300);
+  } catch(e) {
+    btn.textContent += ' ❌';
+    console.error(e);
+  }
+}
+
+function buildButtons(containerId, sounds, isDouble) {
+  const el = document.getElementById(containerId);
+  for (const s of sounds) {
+    const btn = document.createElement('button');
+    btn.className = `src-${s.src}`;
+    btn.textContent = '▶ ' + s.label;
+    btn.addEventListener('click', () => play(s.file, btn, isDouble));
+    el.appendChild(btn);
+  }
+}
+
+buildButtons('btns-deal',  DEAL,  false);
+buildButtons('btns-check', CHECK, true);
+</script>
+</body>
+</html>

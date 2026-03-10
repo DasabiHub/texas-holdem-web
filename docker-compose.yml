@@ -1,0 +1,9 @@
+services:
+  texas-holdem:
+    build: .
+    ports:
+      - "3448:3448"
+    environment:
+      - NODE_ENV=production
+      - PORT=3448
+    restart: unless-stopped

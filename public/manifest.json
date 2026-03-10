@@ -1,0 +1,25 @@
+{
+  "name": "德州扑克",
+  "short_name": "德州扑克",
+  "description": "多人在线德州扑克 Texas Hold'em",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d2b1e",
+  "theme_color": "#0d2b1e",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

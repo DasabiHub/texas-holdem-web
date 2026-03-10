@@ -1,0 +1,817 @@
+'use strict';
+
+const Deck = require('./Deck');
+const { bestHand, compareEvals } = require('./HandEvaluator');
+
+const PHASE = {
+  WAITING: 'waiting',
+  PREFLOP: 'preflop',
+  FLOP: 'flop',
+  TURN: 'turn',
+  RIVER: 'river',
+  SHOWDOWN: 'showdown',
+};
+
+const TURN_TIME = 30; // seconds
+
+class PokerGame {
+  constructor(roomCode, io) {
+    this.roomCode = roomCode;
+    this.io = io;
+    this.hostId = null;
+    this.players = []; // [{ id, name, chips, socketId, totalBet, roundBet, folded, allIn, holeCards, lastAction }]
+    this.pendingPlayers = []; // joined mid-game, waiting to enter at next hand
+    this.phase = PHASE.WAITING;
+    this.deck = null;
+    this.communityCards = [];
+    this.pot = 0;
+    this.dealerIdx = 0;
+    this.currentIdx = -1;
+    this.currentBet = 0;
+    this.minRaise = 20;
+    this.smallBlind = 10;
+    this.bigBlind = 20;
+    this.startingChips = 1000;
+    this.playersToAct = []; // seat indices in order
+    this.timer = null;
+    this.timerDeadline = null;
+    this.lastResult = null;
+    this.maxBuyIn = 1000;
+    this.pendingEnd = false;
+    this.finalRankings = null;
+    this.revealAll = false;       // true = real showdown (cards go to river), false = won by fold
+    this.showCardsWinnerId = null; // winner who can voluntarily show cards
+    this.showCardsTimer = null;
+    this.brokeSpectators = []; // players with 0 chips watching until they buy back in
+    this.waitingForBuyIn = false; // true when game can't start due to insufficient active players
+    this.nextHandAt = null; // timestamp when next hand starts (for client countdown)
+    this.handHistory = []; // [{handNum, communityCards, wonByFold, winners:[{name,holeCards,handName,netProfit}]}]
+    this.handNum = 0;
+  }
+
+  // ── Player management ──────────────────────────────────────────────────────
+
+  addPlayer(id, name, socketId) {
+    if (this.players.length + this.pendingPlayers.length >= 8) return { error: '房间已满' };
+    if (this.phase !== PHASE.WAITING) return { error: '游戏已开始' };
+    if (this.players.find(p => p.name === name)) return { error: '昵称已被使用' };
+    const player = {
+      id, name, socketId,
+      chips: this.startingChips,
+      totalBet: 0, roundBet: 0,
+      folded: false, allIn: false,
+      holeCards: [], lastAction: null,
+      totalLoaned: 0,
+    };
+    this.players.push(player);
+    return { player };
+  }
+
+  // Join mid-game as spectator — will enter at next hand start
+  addPendingPlayer(id, name, socketId) {
+    if (this.players.length + this.pendingPlayers.length >= 8) return { error: '房间已满' };
+    const nameUsed = this.players.find(p => p.name === name) || this.pendingPlayers.find(p => p.name === name);
+    if (nameUsed) return { error: '昵称已被使用' };
+    const player = {
+      id, name, socketId,
+      chips: this.startingChips,
+      totalBet: 0, roundBet: 0,
+      folded: false, allIn: false,
+      holeCards: [], lastAction: null,
+      totalLoaned: 0,
+    };
+    this.pendingPlayers.push(player);
+    return { player };
+  }
+
+  // Called when player explicitly leaves — marks for removal at next hand (or immediately if waiting)
+  removePlayer(id) {
+    // Handle broke spectators
+    const bi = this.brokeSpectators.findIndex(p => p.id === id);
+    if (bi >= 0) { this.brokeSpectators.splice(bi, 1); this._broadcastState(); return; }
+
+    // Handle pending (spectator) players first
+    const pi = this.pendingPlayers.findIndex(p => p.id === id);
+    if (pi >= 0) { this.pendingPlayers.splice(pi, 1); this._broadcastState(); return; }
+
+    const p = this._player(id);
+    if (!p) return;
+    if (this.phase !== PHASE.WAITING) {
+      p.folded = true;
+      p.disconnected = true;
+      p.permanentlyLeft = true;
+      this.playersToAct = this.playersToAct.filter(idx => this.players[idx]?.id !== id);
+      const cur = this.players[this.currentIdx];
+      if (cur && cur.id === id) this._checkAdvance();
+      else this._broadcastState();
+    } else {
+      const idx = this.players.indexOf(p);
+      this.players.splice(idx, 1);
+    }
+  }
+
+  // Called on temporary disconnect — player stays in game (auto-fold each hand)
+  markDisconnected(id) {
+    // Broke spectators: just remove them silently
+    const bi = this.brokeSpectators.findIndex(p => p.id === id);
+    if (bi >= 0) { this.brokeSpectators.splice(bi, 1); return; }
+
+    // Pending players: just remove them (they haven't joined a hand yet)
+    const pi = this.pendingPlayers.findIndex(p => p.id === id);
+    if (pi >= 0) { this.pendingPlayers.splice(pi, 1); return; }
+
+    const p = this._player(id);
+    if (!p || p.permanentlyLeft) return;
+    p.disconnected = true;
+    if (this.phase !== PHASE.WAITING) {
+      p.folded = true;
+      this.playersToAct = this.playersToAct.filter(idx => this.players[idx]?.id !== id);
+      const cur = this.players[this.currentIdx];
+      if (cur && cur.id === id) this._checkAdvance();
+      else this._broadcastState();
+    }
+  }
+
+  updateSocket(id, socketId) {
+    const p = this._player(id);
+    if (p) p.socketId = socketId;
+  }
+
+  // ── Game start ─────────────────────────────────────────────────────────────
+
+  startGame(requesterId) {
+    if (requesterId !== this.hostId) return { error: '只有房主才能开始游戏' };
+    if (this.players.length < 2) return { error: '至少需要2名玩家' };
+    this._startHand();
+    return { ok: true };
+  }
+
+  _startHand() {
+    this.deck = new Deck();
+    this.communityCards = [];
+    this.pot = 0;
+    this.revealAll = false;
+    this.showCardsWinnerId = null;
+    this.waitingForBuyIn = false;
+    clearTimeout(this.showCardsTimer);
+    this.showCardsTimer = null;
+
+    // Absorb pending players (bought in) into the active roster
+    for (const p of this.pendingPlayers) this.players.push(p);
+    this.pendingPlayers = [];
+
+    // Remove permanently-left players
+    // Move 0-chip players to brokeSpectators instead of removing them
+    const nowBroke = this.players.filter(p => !p.permanentlyLeft && p.chips === 0);
+    for (const p of nowBroke) {
+      if (!this.brokeSpectators.find(b => b.id === p.id)) this.brokeSpectators.push(p);
+    }
+    this.players = this.players.filter(p => !p.permanentlyLeft && p.chips > 0);
+
+    // Check if host requested game end
+    if (this.pendingEnd) {
+      this._finalLeaderboard();
+      return;
+    }
+
+    // Not enough active players — wait for buy-ins (don't kick to lobby)
+    if (this.players.length < 2) {
+      this.waitingForBuyIn = true;
+      this.lastResult = this.lastResult; // preserve last result for display
+      this._broadcastState();
+      return;
+    }
+
+    this.lastResult = null;
+    this.nextHandAt = null;
+
+    // Reset per-hand player state
+    for (const p of this.players) {
+      p.holeCards = [];
+      p.totalBet = 0;
+      p.roundBet = 0;
+      p.folded = !!p.disconnected; // auto-fold disconnected players
+      p.allIn = false;
+      p.lastAction = null;
+      p.showedCards = false;
+    }
+
+    const n = this.players.length;
+    // Clamp dealer index after player removal
+    this.dealerIdx = this.dealerIdx % n;
+
+    // Determine SB and BB (heads-up: dealer = SB; 3+: SB left of dealer, BB two left)
+    const sbIdx = n === 2 ? this.dealerIdx : (this.dealerIdx + 1) % n;
+    const bbIdx = (sbIdx + 1) % n;
+
+    // Deal hole cards
+    for (const p of this.players) {
+      p.holeCards = this.deck.deal(2);
+    }
+
+    // Post blinds
+    this._postBlind(sbIdx, this.smallBlind);
+    this._postBlind(bbIdx, this.bigBlind);
+    this.currentBet = this.bigBlind;
+    this.minRaise = this.bigBlind;
+
+    this.phase = PHASE.PREFLOP;
+
+    // Preflop: action starts from UTG (after BB)
+    const utg = (bbIdx + 1) % n;
+    this._buildActionQueue(utg);
+    // BB gets option at end – they're already at the back of the queue
+    this._startTimer();
+    this._broadcastState();
+  }
+
+  _postBlind(idx, amount) {
+    const p = this.players[idx];
+    const actual = Math.min(amount, p.chips);
+    p.chips -= actual;
+    p.roundBet = actual;
+    p.totalBet = actual;
+    this.pot += actual;
+    if (p.chips === 0) p.allIn = true;
+  }
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+
+  handleAction(playerId, action, amount) {
+    if (this.phase === PHASE.WAITING || this.phase === PHASE.SHOWDOWN) return { error: '不在行动阶段' };
+    const p = this._player(playerId);
+    if (!p) return { error: '玩家不存在' };
+    const currentP = this.players[this.currentIdx];
+    if (!currentP || currentP.id !== playerId) return { error: '还没轮到你' };
+    if (p.folded) return { error: '已弃牌' };
+
+    clearTimeout(this.timer);
+    this.timer = null;
+
+    switch (action) {
+      case 'fold':
+        p.folded = true;
+        p.lastAction = '弃牌';
+        break;
+
+      case 'check':
+        if (p.roundBet < this.currentBet) return { error: '需要跟注' };
+        p.lastAction = '过牌';
+        break;
+
+      case 'call': {
+        const callAmt = Math.min(this.currentBet - p.roundBet, p.chips);
+        p.chips -= callAmt;
+        p.roundBet += callAmt;
+        p.totalBet += callAmt;
+        this.pot += callAmt;
+        if (p.chips === 0) { p.allIn = true; p.lastAction = '全押'; }
+        else p.lastAction = '跟注';
+        break;
+      }
+
+      case 'raise': {
+        const raiseTo = Math.max(amount, this.currentBet + this.minRaise);
+        const toAdd = Math.min(raiseTo - p.roundBet, p.chips);
+        p.chips -= toAdd;
+        p.roundBet += toAdd;
+        p.totalBet += toAdd;
+        this.pot += toAdd;
+        this.minRaise = Math.max(this.bigBlind, p.roundBet - this.currentBet);
+        this.currentBet = p.roundBet;
+        if (p.chips === 0) { p.allIn = true; p.lastAction = '全押'; }
+        else p.lastAction = '加注';
+        // Rebuild queue: all active non-all-in except raiser, starting after raiser
+        const raiserIdx = this.players.indexOf(p);
+        const nextIdx = (raiserIdx + 1) % this.players.length;
+        this._buildActionQueue(nextIdx, [raiserIdx]);
+        if (this.playersToAct.length === 0) {
+          this._broadcastState();
+          setTimeout(() => this._nextStreet(), 1200);
+        } else {
+          this._startTimer();
+          this._broadcastState();
+        }
+        return { ok: true };
+      }
+
+      case 'allin': {
+        const toAdd = p.chips;
+        p.chips = 0;
+        p.roundBet += toAdd;
+        p.totalBet += toAdd;
+        this.pot += toAdd;
+        p.allIn = true;
+        p.lastAction = '全押';
+        if (p.roundBet > this.currentBet) {
+          // All-in is a raise: rebuild queue and return early (same as 'raise' case)
+          this.minRaise = Math.max(this.bigBlind, p.roundBet - this.currentBet);
+          this.currentBet = p.roundBet;
+          const myIdx = this.players.indexOf(p);
+          const nextIdx = (myIdx + 1) % this.players.length;
+          this._buildActionQueue(nextIdx, [myIdx]);
+          if (this.playersToAct.length === 0) {
+            this._broadcastState();
+            setTimeout(() => this._nextStreet(), 1200);
+          } else {
+            this._startTimer();
+            this._broadcastState();
+          }
+          return { ok: true };
+        }
+        break;
+      }
+
+      default:
+        return { error: '未知操作' };
+    }
+
+    this._advanceQueue();
+    return { ok: true };
+  }
+
+  _buildActionQueue(startIdx, excludeIdxs = []) {
+    const n = this.players.length;
+    this.playersToAct = [];
+    for (let i = 0; i < n; i++) {
+      const idx = (startIdx + i) % n;
+      if (excludeIdxs.includes(idx)) continue;
+      const p = this.players[idx];
+      if (!p.folded && !p.allIn && !p.disconnected) {
+        this.playersToAct.push(idx);
+      }
+    }
+    this.currentIdx = this.playersToAct.length > 0 ? this.playersToAct[0] : -1;
+    if (this.currentIdx === -1) {
+      clearTimeout(this.timer);
+      this.timerDeadline = null;
+    }
+  }
+
+  _advanceQueue() {
+    this.playersToAct.shift();
+    this._checkAdvance();
+  }
+
+  _checkAdvance() {
+    const active = this.players.filter(p => !p.folded && !p.disconnected);
+
+    // Only one player left – they win
+    if (active.length <= 1) {
+      this._awardPot(active);
+      return;
+    }
+
+    // All remaining action players gone
+    if (this.playersToAct.length === 0) {
+      // Clear current player so action buttons are disabled during the delay
+      this.currentIdx = -1;
+      clearTimeout(this.timer);
+      this.timerDeadline = null;
+      // Broadcast once so the last action is visible, then advance to next street
+      this._broadcastState();
+      setTimeout(() => this._nextStreet(), 1200);
+      return;
+    }
+
+    this.currentIdx = this.playersToAct[0];
+    this._startTimer();
+    this._broadcastState();
+  }
+
+  _nextStreet() {
+    // Reset round bets
+    for (const p of this.players) {
+      p.roundBet = 0;
+      p.lastAction = null;
+    }
+    this.currentBet = 0;
+    this.minRaise = this.bigBlind;
+
+    const n = this.players.length;
+    const firstActive = (startIdx) => {
+      // Post-flop always starts from the player left of the dealer:
+      // 3+ players: SB (dealerIdx+1); heads-up: BB (non-dealer) acts first post-flop.
+      const offset = 1;
+      for (let i = offset; i < n + offset; i++) {
+        const p = this.players[(startIdx + i) % n];
+        if (!p.folded && !p.disconnected) return (startIdx + i) % n;
+      }
+      return -1;
+    };
+
+    switch (this.phase) {
+      case PHASE.PREFLOP:
+        this.communityCards.push(...this.deck.deal(3));
+        this.phase = PHASE.FLOP;
+        break;
+      case PHASE.FLOP:
+        this.communityCards.push(...this.deck.deal(1));
+        this.phase = PHASE.TURN;
+        break;
+      case PHASE.TURN:
+        this.communityCards.push(...this.deck.deal(1));
+        this.phase = PHASE.RIVER;
+        break;
+      case PHASE.RIVER:
+        this._showdown();
+        return;
+    }
+
+    const startIdx = firstActive(this.dealerIdx);
+    this._buildActionQueue(startIdx);
+
+    // If no meaningful betting can occur, run out remaining streets automatically.
+    // Cases: (a) everyone is all-in → playersToAct empty,
+    //        (b) one player has chips but all others are all-in → they have no one to bet against
+    const hasAllIn = this.players.some(p => !p.folded && !p.disconnected && p.allIn);
+    if (this.playersToAct.length === 0 || (this.playersToAct.length === 1 && hasAllIn)) {
+      // Clear current player so no action buttons are shown during the auto-run delay
+      this.playersToAct = [];
+      this.currentIdx = -1;
+      this.timerDeadline = null;
+      clearTimeout(this.timer);
+      this._broadcastState();
+      setTimeout(() => this._nextStreet(), 1200);
+      return;
+    }
+
+    this._startTimer();
+    this._broadcastState();
+  }
+
+  _showdown() {
+    this.phase = PHASE.SHOWDOWN;
+    clearTimeout(this.timer);
+
+    const active = this.players.filter(p => !p.folded);
+    const pots = this._calculatePots();
+    const results = [];
+
+    for (const pot of pots) {
+      const eligible = pot.eligible.filter(p => !p.folded);
+      if (eligible.length === 0) continue;
+
+      // Evaluate hands
+      const evaluated = eligible.map(p => ({
+        player: p,
+        hand: bestHand([...p.holeCards, ...this.communityCards]),
+      }));
+
+      evaluated.sort((a, b) => compareEvals(b.hand.eval, a.hand.eval));
+      const bestEval = evaluated[0].hand.eval;
+      const winners = evaluated.filter(e => compareEvals(e.hand.eval, bestEval) === 0);
+
+      const share = Math.floor(pot.amount / winners.length);
+      let remainder = pot.amount - share * winners.length;
+
+      for (const w of winners) {
+        w.player.chips += share;
+      }
+      // Remainder goes to first winner (closest to dealer left)
+      if (remainder > 0) winners[0].player.chips += remainder;
+
+      results.push({
+        potAmount: pot.amount,
+        winners: winners.map(w => ({ id: w.player.id, name: w.player.name, handName: w.hand.name })),
+      });
+    }
+
+    // Record hand history
+    const histWinMap = {};
+    for (const r of results) {
+      const share = Math.floor(r.potAmount / r.winners.length);
+      for (const w of r.winners) {
+        if (!histWinMap[w.id]) {
+          const p = this.players.find(p => p.id === w.id);
+          histWinMap[w.id] = { name: w.name, holeCards: p ? [...p.holeCards] : [], handName: w.handName, potWon: 0, totalBet: p ? p.totalBet : 0 };
+        }
+        histWinMap[w.id].potWon += share;
+      }
+    }
+    this.handHistory.unshift({
+      handNum: ++this.handNum,
+      communityCards: [...this.communityCards],
+      wonByFold: false,
+      winners: Object.values(histWinMap).map(w => ({
+        name: w.name, holeCards: w.holeCards, handName: w.handName,
+        netProfit: w.potWon - w.totalBet,
+      })),
+    });
+
+    this.revealAll = true;
+    this.lastResult = results;
+    this.nextHandAt = Date.now() + 8000;
+    this._broadcastState();
+
+    // Advance dealer and start next hand after 8 seconds
+    setTimeout(() => {
+      this.dealerIdx = (this.dealerIdx + 1) % this.players.length;
+      this._startHand();
+    }, 8000);
+  }
+
+  _calculatePots() {
+    // Build list of (player, totalBet) entries including folded
+    const allBets = this.players.map(p => ({ player: p, remaining: p.totalBet }));
+    const pots = [];
+
+    while (allBets.some(b => b.remaining > 0)) {
+      const minBet = Math.min(...allBets.filter(b => b.remaining > 0).map(b => b.remaining));
+      let potAmount = 0;
+      const eligible = [];
+
+      for (const b of allBets) {
+        const contrib = Math.min(b.remaining, minBet);
+        potAmount += contrib;
+        b.remaining -= contrib;
+        if (contrib > 0 && !b.player.folded) eligible.push(b.player);
+      }
+
+      if (potAmount > 0) pots.push({ amount: potAmount, eligible });
+    }
+
+    return pots;
+  }
+
+  _awardPot(winners) {
+    this.phase = PHASE.SHOWDOWN;
+    this.revealAll = false; // won by fold — cards hidden until winner chooses to show
+    clearTimeout(this.timer);
+
+    if (winners.length === 1) {
+      winners[0].chips += this.pot;
+      this.lastResult = [{
+        potAmount: this.pot,
+        winners: [{ id: winners[0].id, name: winners[0].name, handName: '' }],
+      }];
+      // Give the winner a 3-second window to voluntarily show their cards
+      this.showCardsWinnerId = winners[0].id;
+      // Record history (this.pot still holds original value before zeroing)
+      this.handHistory.unshift({
+        handNum: ++this.handNum,
+        communityCards: [...this.communityCards],
+        wonByFold: true,
+        winners: [{
+          name: winners[0].name,
+          holeCards: [],
+          handName: '',
+          netProfit: this.pot - winners[0].totalBet,
+        }],
+      });
+    }
+    this.pot = 0;
+    this.nextHandAt = Date.now() + 3500;
+    this._broadcastState();
+
+    this.showCardsTimer = setTimeout(() => {
+      this.showCardsWinnerId = null;
+      this._broadcastState(); // remove the "Show Cards" button
+      setTimeout(() => {
+        this.dealerIdx = (this.dealerIdx + 1) % this.players.length;
+        this._startHand();
+      }, 500);
+    }, 3000);
+  }
+
+  configure(hostId, config) {
+    if (hostId !== this.hostId) return { error: '只有房主才能设置' };
+    if (this.phase !== PHASE.WAITING) return { error: '游戏已开始，无法修改设置' };
+    if (config.maxBuyIn !== undefined) {
+      const v = parseInt(config.maxBuyIn);
+      if (!isNaN(v) && v >= 100) this.maxBuyIn = v;
+    }
+    return { ok: true };
+  }
+
+  buyIn(playerId, amount) {
+    if (this.pendingEnd) return { error: '游戏即将结束，无法买入' };
+    if (this.phase === PHASE.WAITING) return { error: '游戏尚未开始' };
+
+    const buyAmount = Math.max(100, Math.min(Math.round(parseInt(amount) || 1000), this.maxBuyIn));
+
+    // Broke spectator buying back in
+    const brokeIdx = this.brokeSpectators.findIndex(p => p.id === playerId);
+    if (brokeIdx >= 0) {
+      const p = this.brokeSpectators[brokeIdx];
+      p.chips += buyAmount;
+      p.totalLoaned += buyAmount;
+      this.brokeSpectators.splice(brokeIdx, 1);
+      this.pendingPlayers.push(p);
+      this._broadcastState();
+      // If game was waiting for players, start once we have enough
+      if (this.waitingForBuyIn) {
+        const total = this.players.length + this.pendingPlayers.length;
+        if (total >= 2) {
+          this.waitingForBuyIn = false;
+          setTimeout(() => this._startHand(), 2000);
+        }
+      }
+      return { ok: true };
+    }
+
+    // Active player still in this.players with 0 chips (during showdown window)
+    const p = this._player(playerId);
+    if (p && p.chips === 0) {
+      p.chips += buyAmount;
+      p.totalLoaned += buyAmount;
+      this._broadcastState();
+      return { ok: true };
+    }
+
+    return { error: '当前无法买入' };
+  }
+
+  requestEndGame(hostId) {
+    if (hostId !== this.hostId) return { error: '只有房主才能结束游戏' };
+    if (this.phase === PHASE.WAITING) return { error: '游戏尚未开始' };
+    this.pendingEnd = true;
+    this._broadcastState();
+    return { ok: true };
+  }
+
+  _finalLeaderboard() {
+    this.phase = 'ended';
+    this.timerDeadline = null;
+    clearTimeout(this.timer);
+    const allPlayers = [...this.players, ...this.brokeSpectators, ...this.pendingPlayers];
+    this.finalRankings = allPlayers
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        chips: p.chips,
+        totalLoaned: p.totalLoaned,
+        invested: this.startingChips + p.totalLoaned,
+        netProfit: p.chips - this.startingChips - p.totalLoaned,
+      }))
+      .sort((a, b) => b.netProfit - a.netProfit);
+    this._broadcastState();
+  }
+
+  handleShowCards(playerId) {
+    if (this.showCardsWinnerId !== playerId) return { error: '只有赢家可以在此阶段show牌' };
+    clearTimeout(this.showCardsTimer);
+    this.showCardsWinnerId = null;
+
+    const winner = this._player(playerId);
+    if (winner) {
+      winner.showedCards = true;
+      // Update the most recent history entry with the revealed hole cards
+      if (this.handHistory.length > 0 && this.handHistory[0].wonByFold) {
+        this.handHistory[0].winners[0].holeCards = [...winner.holeCards];
+      }
+    }
+
+    this.nextHandAt = Date.now() + 3000;
+    this._broadcastState();
+
+    // Stay for 3 more seconds so everyone can see the cards
+    this.showCardsTimer = setTimeout(() => {
+      this.dealerIdx = (this.dealerIdx + 1) % this.players.length;
+      this._startHand();
+    }, 3000);
+
+    return { ok: true };
+  }
+
+  // ── Timer ──────────────────────────────────────────────────────────────────
+
+  _startTimer() {
+    clearTimeout(this.timer);
+    this.timerDeadline = Date.now() + TURN_TIME * 1000;
+    this.timer = setTimeout(() => {
+      const p = this.players[this.currentIdx];
+      if (!p) return;
+      // Auto-action: check if possible, else fold
+      if (p.roundBet >= this.currentBet) {
+        this.handleAction(p.id, 'check', 0);
+      } else {
+        this.handleAction(p.id, 'fold', 0);
+      }
+    }, TURN_TIME * 1000);
+  }
+
+  // ── State broadcasting ─────────────────────────────────────────────────────
+
+  _broadcastState() {
+    for (const p of this.players) {
+      const sock = this.io.sockets.sockets.get(p.socketId);
+      if (sock) sock.emit('game_state', this._stateFor(p.id));
+    }
+    // Send spectator view to pending players and broke spectators
+    for (const p of [...this.pendingPlayers, ...this.brokeSpectators]) {
+      const sock = this.io.sockets.sockets.get(p.socketId);
+      if (sock) sock.emit('game_state', this._stateFor(p.id));
+    }
+    this.io.to(this.roomCode).emit('room_update', this._publicRoomInfo());
+  }
+
+  _stateFor(playerId) {
+    const isShowdown = this.phase === PHASE.SHOWDOWN;
+    const myPlayer = this._player(playerId);
+    const isBrokeSpectator = !myPlayer && this.brokeSpectators.some(p => p.id === playerId);
+
+    const n = this.players.length;
+    const sbIdx = n === 2 ? this.dealerIdx : (this.dealerIdx + 1) % n;
+    const bbIdx = (this.dealerIdx + 1 + (n === 2 ? 0 : 1)) % n;
+
+    const players = this.players.map((p, idx) => ({
+      id: p.id,
+      name: p.name,
+      chips: p.chips,
+      totalLoaned: p.totalLoaned || 0,
+      roundBet: p.roundBet,
+      totalBet: p.totalBet,
+      folded: p.folded,
+      allIn: p.allIn,
+      lastAction: p.lastAction,
+      isDealer: idx === this.dealerIdx && n > 2,
+      isSB: idx === sbIdx,
+      isBB: idx === bbIdx,
+      isCurrent: idx === this.currentIdx,
+      disconnected: !!p.disconnected,
+      // Reveal cards if: own cards, real showdown (went to river), or voluntarily shown
+      ...(() => {
+        const reveal = p.id === playerId || this.revealAll || !!p.showedCards;
+        const holeCards = reveal ? p.holeCards : p.holeCards.map(() => null);
+        if (reveal && isShowdown && !p.folded && p.holeCards.length > 0) {
+          const h = bestHand([...p.holeCards, ...this.communityCards]);
+          return { holeCards, handName: h.name, bestCards: h.cards };
+        }
+        return { holeCards, handName: null, bestCards: null };
+      })(),
+    }));
+
+    // Available actions for the current player
+    let actions = null;
+    if (myPlayer && !myPlayer.folded && this.players[this.currentIdx]?.id === playerId && this.phase !== PHASE.SHOWDOWN) {
+      const canCheck = myPlayer.roundBet >= this.currentBet;
+      const callAmt = Math.min(this.currentBet - myPlayer.roundBet, myPlayer.chips);
+      const canCall = !canCheck && callAmt > 0;
+      const canRaise = myPlayer.chips > callAmt;
+      actions = {
+        canFold: true,
+        canCheck,
+        canCall,
+        callAmount: callAmt,
+        canRaise,
+        minRaise: this.currentBet + this.minRaise,
+        maxRaise: myPlayer.chips + myPlayer.roundBet,
+      };
+    }
+
+    const myBrokeSpectator = this.brokeSpectators.find(p => p.id === playerId);
+    const myTotalLoaned = myPlayer?.totalLoaned || myBrokeSpectator?.totalLoaned || 0;
+
+    return {
+      phase: this.phase,
+      communityCards: this.communityCards,
+      pot: this.pot,
+      currentBet: this.currentBet,
+      players,
+      myId: playerId,
+      timerDeadline: this.timerDeadline,
+      actions,
+      lastResult: this.lastResult,
+      roomCode: this.roomCode,
+      isSpectator: !myPlayer,
+      isBrokeSpectator,
+      myTotalLoaned,
+      canShowCards: this.showCardsWinnerId === playerId,
+      revealAll: this.revealAll,
+      maxBuyIn: this.maxBuyIn,
+      pendingEnd: this.pendingEnd,
+      finalRankings: this.finalRankings,
+      waitingForBuyIn: this.waitingForBuyIn,
+      // Broke spectators can buy in any time; active 0-chip players only during showdown
+      canBuyIn: !this.pendingEnd && (
+        isBrokeSpectator ||
+        (!!myPlayer && myPlayer.chips === 0 && isShowdown)
+      ),
+      isHost: myPlayer?.id === this.hostId || false,
+      nextHandAt: this.nextHandAt,
+      handHistory: this.handHistory,
+    };
+  }
+
+  _publicRoomInfo() {
+    return {
+      roomCode: this.roomCode,
+      hostId: this.hostId,
+      phase: this.phase,
+      playerCount: this.players.length,
+      players: this.players.map(p => ({ id: p.id, name: p.name, chips: p.chips })),
+      pendingCount: this.pendingPlayers.length,
+      pendingPlayers: this.pendingPlayers.map(p => ({ id: p.id, name: p.name })),
+      maxBuyIn: this.maxBuyIn,
+    };
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  _player(id) {
+    return this.players.find(p => p.id === id) || null;
+  }
+}
+
+module.exports = PokerGame;

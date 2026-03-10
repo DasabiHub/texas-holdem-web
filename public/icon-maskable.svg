@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Maskable: full bleed, safe zone 80% (102–410px) -->
+  <defs>
+    <radialGradient id="bg2" cx="40%" cy="32%" r="72%">
+      <stop offset="0%"   stop-color="#1e6b3f"/>
+      <stop offset="55%"  stop-color="#0d3520"/>
+      <stop offset="100%" stop-color="#051208"/>
+    </radialGradient>
+    <radialGradient id="vignette2" cx="50%" cy="50%" r="68%">
+      <stop offset="0%"   stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.55"/>
+    </radialGradient>
+    <radialGradient id="glass2" cx="50%" cy="0%" r="60%">
+      <stop offset="0%"   stop-color="#fff" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="goldSpade2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#FFF5C8"/>
+      <stop offset="18%"  stop-color="#FFD700"/>
+      <stop offset="60%"  stop-color="#F0A800"/>
+      <stop offset="100%" stop-color="#A0680A"/>
+    </linearGradient>
+    <filter id="spadeGlow2" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="1.2 0.8 0 0 0
+                0.8 0.7 0 0 0
+                0   0   0 0 0
+                0   0   0 0.55 0" result="colored"/>
+      <feMerge><feMergeNode in="colored"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg2)"/>
+  <rect width="512" height="512" fill="url(#vignette2)"/>
+  <rect width="512" height="512" fill="url(#glass2)"/>
+
+  <!-- 黑桃控制在安全区内（safe zone 102–410），字号略小 -->
+  <text x="256" y="330"
+        text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="260"
+        fill="url(#goldSpade2)"
+        filter="url(#spadeGlow2)">♠</text>
+</svg>

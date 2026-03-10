@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="德州扑克">
+<meta name="theme-color" content="#0d2b1e">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>德州扑克</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+body{background:#0d2b1e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── Screens ─────────────────────────────────────────────── */
+.screen{display:none;flex-direction:column;height:100dvh;overflow:hidden}
+.screen.active{display:flex}
+
+/* ── Lobby ───────────────────────────────────────────────── */
+#lobby{align-items:center;justify-content:center;gap:20px;padding:24px;background:radial-gradient(ellipse at 50% 30%,#1b5e37,#0d2b1e)}
+.logo{font-size:56px;margin-bottom:8px}
+.title{font-size:28px;font-weight:800;letter-spacing:2px;color:#FFD700;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.subtitle{font-size:13px;color:#aaa;margin-bottom:12px}
+.input-group{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px}
+.input-group label{font-size:13px;color:#aaa}
+input[type=text]{width:100%;padding:13px 16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;color:#fff;font-size:16px;outline:none}
+input[type=text]:focus{border-color:#4CAF50;background:rgba(255,255,255,.12)}
+input[type=text]::placeholder{color:rgba(255,255,255,.3)}
+.btn-primary{width:100%;max-width:320px;padding:14px;background:linear-gradient(135deg,#2e7d32,#1b5e37);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.btn-secondary{width:100%;max-width:320px;padding:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:14px;color:#fff;font-size:16px;font-weight:600;cursor:pointer}
+.btn-primary:active,.btn-secondary:active{opacity:.8;transform:scale(.98)}
+
+/* ── Join Screen ─────────────────────────────────────────── */
+#join{padding:24px;gap:16px;background:#0d2b1e}
+.screen-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.back-btn{width:36px;height:36px;background:rgba(255,255,255,.08);border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.screen-title{font-size:20px;font-weight:700}
+.section-label{font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+.join-code-row{display:flex;gap:8px}
+.join-code-row input{flex:1}
+.btn-small{padding:13px 18px;background:#2e7d32;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap}
+.divider{display:flex;align-items:center;gap:10px;color:#555;font-size:12px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:#333}
+#rooms-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.room-item{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.room-item:active{background:rgba(255,255,255,.12)}
+.room-info .room-code{font-size:16px;font-weight:700;color:#FFD700}
+.room-info .room-host{font-size:12px;color:#aaa;margin-top:2px}
+.room-count{font-size:13px;color:#4CAF50}
+.empty-hint{color:#555;font-size:14px;text-align:center;padding:24px 0}
+
+/* ── Waiting Room ────────────────────────────────────────── */
+#waiting{padding:24px;gap:16px;background:#0d2b1e}
+.code-box{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:20px;text-align:center}
+.code-label{font-size:12px;color:#aaa;margin-bottom:6px}
+.code-value{font-size:36px;font-weight:800;letter-spacing:8px;color:#FFD700;cursor:pointer}
+.code-hint{font-size:12px;color:#555;margin-top:6px}
+#waiting-players{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.player-item{background:rgba(255,255,255,.06);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.player-avatar-sm{width:36px;height:36px;border-radius:50%;background:#2c3e50;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
+.player-name-sm{font-size:15px;font-weight:600}
+.host-tag{font-size:11px;background:#FFD700;color:#000;padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:700}
+.waiting-footer{display:flex;flex-direction:column;gap:10px}
+.waiting-msg{text-align:center;color:#aaa;font-size:14px;padding:8px}
+
+/* ── Game Screen ─────────────────────────────────────────── */
+#game{position:relative;background:#0d2b1e}
+#btn-exit-game{
+  position:absolute;top:8px;right:8px;z-index:30;
+  background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);
+  border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;
+  padding:4px 10px;cursor:pointer
+}
+#btn-exit-game:active{background:rgba(180,0,0,.5);color:#fff}
+#btn-history{
+  position:absolute;top:8px;left:8px;z-index:30;
+  background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);
+  border-radius:8px;color:rgba(255,255,255,.65);font-size:12px;
+  padding:4px 10px;cursor:pointer
+}
+#btn-history:active{background:rgba(255,255,255,.12);color:#fff}
+#table-wrap{position:relative;width:100%;flex:1;min-height:0}
+#table-felt{
+  position:absolute;top:8%;left:3%;width:94%;height:82%;
+  background:radial-gradient(ellipse at 50% 45%,#3a9060 0%,#236b42 45%,#1b5e37 70%,#145230 100%);
+  border-radius:50% / 28%;
+  border:10px solid #4a2c08;
+  box-shadow:
+    inset 0 0 60px rgba(0,0,0,.45),
+    inset 0 0 0 5px rgba(255,255,255,.06),
+    0 0 0 3px #8B6914,
+    0 0 0 7px #2e1a04,
+    0 8px 32px rgba(0,0,0,.7)
+}
+#community-area{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  display:flex;flex-direction:column;align-items:center;gap:6px;z-index:5
+}
+#community-cards{display:flex;gap:5px}
+#pot-display{background:rgba(0,0,0,.55);padding:3px 12px;border-radius:12px;font-size:13px;font-weight:700;color:#FFD700}
+#phase-badge{font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px}
+#next-hand-countdown{font-size:11px;color:rgba(255,255,255,.45);margin-top:2px;min-height:14px;text-align:center}
+.card{
+  width:36px;height:52px;background:#fff;border-radius:5px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-weight:800;box-shadow:0 2px 6px rgba(0,0,0,.5)
+}
+.card-rank{font-size:13px;line-height:1}
+.card-suit{font-size:15px;line-height:1}
+.card.back{
+  background-color:#7B1010;
+  background-image:
+    repeating-linear-gradient(45deg,rgba(255,255,255,.13) 0,rgba(255,255,255,.13) 1px,transparent 0,transparent 7px),
+    repeating-linear-gradient(-45deg,rgba(255,255,255,.13) 0,rgba(255,255,255,.13) 1px,transparent 0,transparent 7px);
+  box-shadow:inset 0 0 0 3px rgba(0,0,0,.25),inset 0 0 0 4px rgba(255,255,255,.15),0 2px 6px rgba(0,0,0,.5)
+}
+.card.big{width:52px;height:76px}
+.card.big .card-rank{font-size:20px}
+.card.big .card-suit{font-size:22px}
+.seat{
+  position:absolute;transform:translate(-50%,-50%);
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  z-index:10;transition:opacity .3s
+}
+.seat.folded{opacity:.35}
+.seat-avatar-wrap{position:relative;width:46px;height:46px}
+.seat-avatar{
+  width:46px;height:46px;border-radius:50%;
+  background:linear-gradient(135deg,#2c3e50,#1a252f);
+  border:2.5px solid #444;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:17px;color:#fff;position:relative;z-index:1
+}
+.seat.current .seat-avatar{border-color:#4CAF50;box-shadow:0 0 10px rgba(76,175,80,.5)}
+.seat.me .seat-avatar{border-color:#FFD700;box-shadow:0 0 10px rgba(255,215,0,.4)}
+.seat.disconnected .seat-avatar{filter:grayscale(1);opacity:.5}
+.timer-ring{
+  position:absolute;inset:-4px;
+  width:calc(100% + 8px);height:calc(100% + 8px);
+  transform:rotate(-90deg);z-index:2;border-radius:50%
+}
+.timer-fill{
+  fill:none;stroke:#4CAF50;stroke-width:3.5;
+  stroke-dasharray:138.2;stroke-dashoffset:0;
+  stroke-linecap:round;transition:stroke-dashoffset .3s linear,stroke .3s
+}
+.action-badge{
+  position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+  font-size:10px;padding:1px 5px;border-radius:4px;
+  background:#1976D2;white-space:nowrap;z-index:3;font-weight:700
+}
+.action-badge.fold{background:#c62828}
+.action-badge.raise,.action-badge.allin{background:#e65100}
+.action-badge.check{background:#558b2f}
+.seat-name{
+  font-size:10px;font-weight:600;
+  background:rgba(0,0,0,.65);padding:1px 6px;border-radius:4px;
+  max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+.seat-chips{font-size:11px;color:#fff;font-weight:500}
+.seat-bet{font-size:11px;color:#FFD700;font-weight:800}
+.seat-role-badges{display:flex;gap:3px;margin-top:1px}
+.badge{font-size:9px;padding:1px 4px;border-radius:3px;font-weight:800}
+.badge.D{background:#8B6914;color:#fff}
+.badge.SB{background:#1565C0;color:#fff}
+.badge.BB{background:#c62828;color:#fff}
+.seat-mini-cards{display:flex;gap:4px;margin-top:3px}
+.mini-card{
+  width:19px;height:28px;background:#fff;border-radius:3px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:8px;font-weight:800;line-height:1.15;
+  box-shadow:0 2px 8px rgba(0,0,0,.7);border:1px solid rgba(0,0,0,.1)
+}
+.mini-card.back{
+  background-color:#7B1010;
+  background-image:
+    repeating-linear-gradient(45deg,rgba(255,255,255,.14) 0,rgba(255,255,255,.14) 1px,transparent 0,transparent 5px),
+    repeating-linear-gradient(-45deg,rgba(255,255,255,.14) 0,rgba(255,255,255,.14) 1px,transparent 0,transparent 5px);
+  border:1.5px solid rgba(255,255,255,.35);
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.3),inset 0 0 0 3px rgba(255,255,255,.18),0 3px 10px rgba(0,0,0,.85)
+}
+/* folded players: dim their cards */
+.seat.folded .mini-card{opacity:.18;filter:grayscale(1)}
+/* card flip reveal on showdown */
+.mini-card.reveal{animation:card-reveal .3s cubic-bezier(.34,1.2,.64,1) both}
+@keyframes card-reveal{from{transform:scaleX(0) rotateY(90deg)}to{transform:scaleX(1) rotateY(0)}}
+/* larger cards during showdown reveal */
+.mini-card.showdown{width:28px;height:42px;font-size:11px;border-radius:4px}
+/* hand name badge below mini cards */
+.hand-badge{
+  font-size:9px;padding:2px 5px;border-radius:4px;margin-top:2px;
+  background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.75);white-space:nowrap;text-align:center
+}
+.hand-badge.winner{background:rgba(255,215,0,.22);border-color:#FFD700;color:#FFD700;font-weight:800}
+/* winner seat glow */
+.seat.winner .seat-avatar{
+  border-color:#FFD700 !important;
+  animation:winner-glow .65s ease-in-out infinite alternate
+}
+@keyframes winner-glow{
+  from{box-shadow:0 0 6px rgba(255,215,0,.5)}
+  to{box-shadow:0 0 22px rgba(255,215,0,1),0 0 40px rgba(255,215,0,.35)}
+}
+#bottom-panel{
+  background:rgba(0,0,0,.35);backdrop-filter:blur(4px);
+  padding:10px 12px 14px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  border-top:1px solid rgba(255,255,255,.08)
+}
+#my-area{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%}
+#my-info-row{display:flex;justify-content:space-between;width:100%;padding:0 4px}
+#my-chips{font-size:13px;color:#FFD700;font-weight:700}
+#my-hand-name{font-size:12px;color:rgba(255,255,255,.6)}
+#my-cards-row{display:flex;gap:10px;min-height:76px;align-items:center}
+#action-row{display:flex;align-items:center;justify-content:center;gap:14px;width:100%}
+.action-btn{
+  border:none;border-radius:50%;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-weight:700;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.4);
+  transition:transform .1s,opacity .1s;line-height:1.2
+}
+.action-btn:active{transform:scale(.94)}
+.action-btn:disabled{opacity:.25;pointer-events:none}
+#btn-fold{width:68px;height:68px;background:linear-gradient(135deg,#c62828,#b71c1c);font-size:14px}
+#btn-check-call{width:80px;height:80px;background:linear-gradient(135deg,#1976D2,#1565C0);font-size:12px;text-align:center}
+#btn-raise{width:68px;height:68px;background:linear-gradient(135deg,#2e7d32,#1b5e37);font-size:14px}
+#raise-panel{
+  width:100%;background:rgba(0,0,0,.4);border-radius:14px;
+  padding:12px 14px;display:flex;flex-direction:column;gap:10px
+}
+#raise-amount-display{text-align:center;font-size:28px;font-weight:800;color:#FFD700}
+#raise-slider{
+  width:100%;height:4px;-webkit-appearance:none;appearance:none;
+  background:#333;border-radius:2px;outline:none;cursor:pointer
+}
+#raise-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:22px;
+  border-radius:50%;background:#4CAF50;cursor:pointer;
+  box-shadow:0 2px 6px rgba(0,0,0,.4)
+}
+.raise-presets{display:flex;gap:6px;justify-content:center}
+.preset-btn{
+  padding:6px 10px;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.15);border-radius:8px;
+  color:#fff;font-size:11px;cursor:pointer;font-weight:600
+}
+.preset-btn:active{background:rgba(255,255,255,.2)}
+.raise-confirm-row{display:flex;gap:10px;justify-content:center}
+#btn-raise-cancel{padding:10px 24px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;font-size:14px;cursor:pointer}
+#btn-raise-confirm{padding:10px 28px;background:#2e7d32;border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#result-overlay{
+  position:absolute;inset:0;background:rgba(0,0,0,.72);
+  display:none;align-items:center;justify-content:center;z-index:50;
+  padding:12px
+}
+.result-card{
+  background:linear-gradient(160deg,#1b5437,#102d1e);
+  border:2px solid #FFD700;border-radius:20px;
+  padding:18px 16px;max-width:340px;width:100%;
+  box-shadow:0 12px 40px rgba(0,0,0,.7);
+  max-height:82dvh;overflow-y:auto;
+  animation:result-in .4s cubic-bezier(.34,1.4,.64,1)
+}
+@keyframes result-in{from{transform:scale(.8) translateY(24px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.result-header{text-align:center;margin-bottom:12px}
+.result-emoji{font-size:36px;display:block;margin-bottom:4px}
+.result-title{font-size:17px;color:#FFD700;font-weight:800}
+/* Showdown player rows */
+.showdown-rows{display:flex;flex-direction:column;gap:8px}
+.showdown-row{
+  border-radius:12px;padding:10px 12px;
+  background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);
+  display:flex;flex-direction:column;gap:6px;
+  animation:row-in .3s ease-out both
+}
+.showdown-row.winner{background:rgba(255,215,0,.1);border-color:rgba(255,215,0,.45)}
+@keyframes row-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.showdown-top{display:flex;justify-content:space-between;align-items:center}
+.showdown-name{font-size:13px;font-weight:700}
+.showdown-pot{color:#FFD700;font-size:14px;font-weight:800}
+.showdown-hand{font-size:11px;color:rgba(255,255,255,.55);margin-top:-2px}
+.showdown-hand.winner{color:#FFD700;font-weight:700;font-size:12px}
+.showdown-cards{display:flex;gap:5px}
+.showdown-cards .card{width:30px;height:44px}
+.showdown-cards .card .card-rank{font-size:11px}
+.showdown-cards .card .card-suit{font-size:13px}
+.showdown-hole-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.showdown-hole-label{font-size:10px;color:rgba(255,255,255,.45);white-space:nowrap;flex-shrink:0}
+.showdown-best-cards{display:flex;gap:4px;flex-wrap:wrap}
+.showdown-best-card{
+  width:28px;height:40px;background:#fff;border-radius:4px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;line-height:1.2;gap:1px;
+  box-shadow:0 2px 5px rgba(0,0,0,.4);border:1.5px solid transparent
+}
+.showdown-best-card.hole{border-color:#FFD700;box-shadow:0 0 6px rgba(255,215,0,.6),0 2px 5px rgba(0,0,0,.4)}
+#result-footer{margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:8px}
+#btn-buyin-overlay{padding:10px 28px;background:linear-gradient(135deg,#1976D2,#1565C0);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+#btn-buyin-overlay:active{opacity:.8}
+#btn-show-cards{
+  padding:10px 28px;background:linear-gradient(135deg,#1976D2,#1565C0);
+  border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 12px rgba(0,0,0,.3)
+}
+#btn-show-cards:active{opacity:.8}
+#game-waiting-overlay{
+  position:absolute;inset:0;background:rgba(0,0,0,.5);
+  display:none;align-items:center;justify-content:center;z-index:40;
+  flex-direction:column;gap:12px
+}
+
+/* ── Spectator banner ────────────────────────────────────── */
+#spectator-banner{
+  display:none;
+  position:absolute;bottom:0;left:0;right:0;z-index:35;
+  background:linear-gradient(135deg,#1565C0,#0d47a1);
+  padding:10px 16px;
+  flex-direction:column;align-items:center;gap:2px;
+  border-top:1px solid rgba(255,255,255,.15)
+}
+#spectator-banner span:first-child{font-size:14px;font-weight:700}
+#spectator-hint{font-size:11px;color:rgba(255,255,255,.7)}
+#spectator-banner.visible{display:flex}
+#btn-buyin-banner{padding:6px 16px;background:#1976D2;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px}
+#btn-buyin-banner:active{opacity:.8}
+
+/* ── Reconnecting overlay ─────────────────────────────────── */
+/* Shown on: page load with session, socket disconnect mid-game */
+#reconnect-overlay{
+  position:fixed;inset:0;background:#0d2b1e;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;z-index:500
+}
+#reconnect-overlay.hidden{display:none}
+#reconnect-overlay .logo{font-size:48px}
+.reconnect-msg{font-size:16px;color:#aaa}
+.reconnect-sub{font-size:12px;color:#555}
+.spinner{
+  width:40px;height:40px;border:3px solid rgba(255,255,255,.15);
+  border-top-color:#4CAF50;border-radius:50%;
+  animation:spin .8s linear infinite
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Toast ────────────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.85);color:#fff;padding:10px 20px;
+  border-radius:20px;font-size:13px;pointer-events:none;
+  opacity:0;transition:opacity .3s;z-index:600;white-space:nowrap
+}
+#toast.show{opacity:1}
+
+/* ── Host config in waiting room ──────────────────────── */
+.config-row{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.06);border-radius:10px;padding:12px 16px}
+.config-row label{font-size:14px;color:#aaa}
+.config-row input[type=number]{width:90px;padding:6px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:15px;font-weight:700;text-align:center;outline:none}
+
+/* ── End game button (host only) ─────────────────────── */
+#btn-end-game{
+  position:absolute;top:38px;left:8px;z-index:30;
+  background:rgba(180,0,0,.55);border:1px solid rgba(255,80,80,.3);
+  border-radius:8px;color:rgba(255,255,255,.85);font-size:12px;
+  padding:4px 10px;cursor:pointer;display:none
+}
+#btn-end-game:active{background:rgba(180,0,0,.85)}
+
+/* ── Pending-end notice ───────────────────────────────── */
+#pending-end-notice{
+  display:none;background:rgba(180,0,0,.4);border-top:1px solid rgba(255,80,80,.3);
+  padding:6px 12px;text-align:center;font-size:12px;color:rgba(255,200,200,.9);z-index:25
+}
+
+/* ── Buy-in panel ─────────────────────────────────────── */
+#buyin-panel{
+  display:none;width:100%;flex-direction:column;align-items:center;gap:8px;
+  background:rgba(0,0,0,.3);border-radius:14px;padding:14px
+}
+#buyin-panel .buyin-title{font-size:13px;color:rgba(255,255,255,.6)}
+#buyin-panel .buyin-loan{font-size:11px;color:#FF9800}
+#btn-buyin{padding:12px 36px;background:linear-gradient(135deg,#1976D2,#0d47a1);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+#btn-buyin:active{opacity:.8}
+
+/* ── Buy-in amount modal ───────────────────────────────── */
+#buyin-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;z-index:90;padding:20px
+}
+.buyin-modal-box{
+  background:linear-gradient(160deg,#1b3525,#0d2018);
+  border:1px solid rgba(255,215,0,.25);border-radius:20px;
+  padding:24px 20px;width:100%;max-width:300px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6)
+}
+.buyin-modal-title{font-size:17px;font-weight:700;color:#FFD700;text-align:center;margin-bottom:6px}
+.buyin-modal-loan{font-size:12px;color:#FF9800;text-align:center;min-height:18px;margin-bottom:16px}
+.buyin-modal-amount{font-size:38px;font-weight:800;color:#FFD700;text-align:center;
+  letter-spacing:1px;margin-bottom:18px;font-variant-numeric:tabular-nums}
+.buyin-slider-wrap{padding:0 4px;margin-bottom:8px}
+#buyin-modal-slider{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:6px;border-radius:3px;outline:none;cursor:pointer;
+  background:linear-gradient(to right,#FFD700 0%,rgba(255,255,255,.15) 0%)
+}
+#buyin-modal-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:26px;height:26px;border-radius:50%;
+  background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.45);cursor:pointer;
+  transition:transform .1s
+}
+#buyin-modal-slider::-webkit-slider-thumb:active{transform:scale(1.15)}
+#buyin-modal-slider::-moz-range-thumb{
+  width:26px;height:26px;border:none;border-radius:50%;
+  background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.45);cursor:pointer
+}
+.buyin-slider-labels{display:flex;justify-content:space-between;
+  font-size:11px;color:rgba(255,255,255,.35);margin-bottom:20px;padding:0 2px}
+.buyin-modal-btns{display:flex;gap:10px}
+.buyin-modal-btns button{flex:1;padding:11px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer}
+#btn-buyin-modal-cancel{background:rgba(255,255,255,.1);color:#aaa}
+#btn-buyin-modal-cancel:active{opacity:.7}
+#btn-buyin-modal-confirm{background:linear-gradient(135deg,#1976D2,#0d47a1);color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+#btn-buyin-modal-confirm:active{opacity:.8}
+
+/* ── Final leaderboard overlay ────────────────────────── */
+#final-overlay{
+  position:absolute;inset:0;background:rgba(0,0,0,.88);
+  display:none;align-items:center;justify-content:center;z-index:60;padding:16px
+}
+.final-card{
+  background:linear-gradient(160deg,#1b3a54,#0d2030);
+  border:2px solid #FFD700;border-radius:20px;
+  padding:20px 16px;max-width:380px;width:100%;
+  box-shadow:0 12px 40px rgba(0,0,0,.7);
+  max-height:90dvh;overflow-y:auto;
+  animation:result-in .4s cubic-bezier(.34,1.4,.64,1)
+}
+.final-title{font-size:20px;font-weight:800;color:#FFD700;text-align:center;margin-bottom:16px}
+.lb-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:12px;margin-bottom:6px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+  animation:row-in .3s ease-out both
+}
+.lb-row.first{background:rgba(255,215,0,.12);border-color:rgba(255,215,0,.4)}
+.lb-rank{font-size:18px;font-weight:800;color:rgba(255,255,255,.4);width:26px;text-align:center;flex-shrink:0}
+.lb-rank.gold{color:#FFD700}
+.lb-name{flex:1;font-size:14px;font-weight:600}
+.lb-detail{text-align:right;line-height:1.4}
+.lb-chips{font-size:12px;color:rgba(255,255,255,.5)}
+.lb-profit{font-size:15px;font-weight:800}
+.lb-profit.pos{color:#4CAF50}
+.lb-profit.neg{color:#f44336}
+.lb-profit.zero{color:#aaa}
+
+/* ── Seat loan label ──────────────────────────────────── */
+.seat-loan{font-size:9px;color:#FF9800;font-weight:700}
+
+/* ── Hand history panel ───────────────────────────────── */
+#history-panel{
+  position:absolute;inset:0;z-index:55;
+  background:rgba(8,24,16,.97);
+  display:none;flex-direction:column;overflow:hidden
+}
+#history-panel.visible{display:flex;animation:slide-from-right .22s cubic-bezier(.34,1,.64,1)}
+@keyframes slide-from-right{from{transform:translateX(100%)}to{transform:translateX(0)}}
+#history-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px 10px;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0
+}
+#history-header-title{font-size:17px;font-weight:700}
+#btn-close-history{
+  background:rgba(255,255,255,.1);border:none;border-radius:50%;
+  width:30px;height:30px;color:#fff;font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center
+}
+#history-list{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:5px}
+.history-empty{color:#555;font-size:14px;text-align:center;padding:32px 0}
+.hist-row{
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;padding:8px 10px;
+  display:flex;align-items:center;gap:5px;min-width:0
+}
+.hist-row.fold-win{border-color:rgba(255,255,255,.05)}
+.hist-num{font-size:10px;color:#555;flex-shrink:0;width:22px;text-align:right}
+.hist-name{font-size:12px;font-weight:700;flex-shrink:0;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#FFD700}
+.hist-hole{display:flex;gap:2px;flex-shrink:0}
+.hist-hcard{font-size:12px;font-weight:800;white-space:nowrap;letter-spacing:-0.5px}
+.hist-handname{font-size:10px;color:rgba(255,255,255,.5);flex-shrink:0;white-space:nowrap}
+.hist-sep{color:rgba(255,255,255,.18);font-size:10px;flex-shrink:0;padding:0 1px}
+.hist-comm{display:flex;gap:2px;flex-shrink:0}
+.hist-ccard{font-size:10px;font-weight:700;white-space:nowrap;letter-spacing:-0.5px}
+.hist-profit{font-size:12px;font-weight:800;flex-shrink:0;margin-left:auto;padding-left:4px;white-space:nowrap}
+.hist-profit.pos{color:#4CAF50}
+.hist-profit.neg{color:#f44336}
+.hist-profit.zero{color:#aaa}
+.hist-fold-label{font-size:10px;color:rgba(255,255,255,.3);font-style:italic;flex-shrink:0}
+
+/* ── Chip fly animation ───────────────────────────────── */
+.chip-fly{
+  position:absolute;width:20px;height:20px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#FFE066 0%,#c8940a 55%,#8B6914 100%);
+  border:1.5px solid rgba(255,255,255,.35);
+  box-shadow:0 2px 6px rgba(0,0,0,.55),inset 0 1px 1px rgba(255,255,255,.25);
+  pointer-events:none;z-index:30;transform:translate(-50%,-50%)
+}
+/* ── Seat win badge (on-table result) ─────────────────── */
+.seat-win-badge{
+  font-size:13px;font-weight:900;color:#FFD700;
+  background:rgba(0,0,0,.78);border:1.5px solid rgba(255,215,0,.55);
+  padding:2px 9px;border-radius:10px;white-space:nowrap;
+  animation:win-badge-in .5s cubic-bezier(.34,1.5,.64,1) both
+}
+@keyframes win-badge-in{
+  from{opacity:0;transform:scale(.4) translateY(6px)}
+  to  {opacity:1;transform:scale(1) translateY(0)}
+}
+/* ── Won-by-fold minimal banner ───────────────────────── */
+#fold-win-banner{
+  position:absolute;bottom:0;left:0;right:0;z-index:50;
+  background:linear-gradient(135deg,rgba(27,84,55,.97),rgba(16,45,30,.97));
+  border-top:2px solid #FFD700;
+  padding:12px 16px;display:none;flex-direction:column;align-items:center;gap:8px;
+  animation:slide-up .35s cubic-bezier(.34,1.2,.64,1)
+}
+#fold-win-banner.visible{display:flex}
+@keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* ── Action chip animation ────────────────────────────── */
+.action-anim{
+  position:absolute;transform:translate(-50%,-50%);
+  font-weight:900;font-size:15px;
+  padding:5px 12px;border-radius:20px;
+  pointer-events:none;z-index:25;
+  box-shadow:0 3px 10px rgba(0,0,0,.5),0 0 0 2px rgba(255,255,255,.25);
+  white-space:nowrap;
+  animation:action-float 1.4s cubic-bezier(.22,.61,.36,1) forwards
+}
+@keyframes action-float{
+  0%  {opacity:0;transform:translate(-50%,-50%) scale(.6)}
+  20% {opacity:1;transform:translate(-50%,-80%) scale(1.3)}
+  60% {opacity:1;transform:translate(-50%,-115%) scale(1.05)}
+  100%{opacity:0;transform:translate(-50%,-160%) scale(.85)}
+}
+/* ── All-in 特殊浮动动画 ───────────────────────────────── */
+.action-anim.allin-big{
+  font-size:22px;padding:8px 20px;letter-spacing:1px;
+  animation:allin-float 2s cubic-bezier(.22,.61,.36,1) forwards
+}
+@keyframes allin-float{
+  0%  {opacity:0;transform:translate(-50%,-50%) scale(.4)}
+  18% {opacity:1;transform:translate(-50%,-70%) scale(1.6)}
+  55% {opacity:1;transform:translate(-50%,-120%) scale(1.25)}
+  100%{opacity:0;transform:translate(-50%,-190%) scale(.9)}
+}
+/* ── All-in 座位光效 ──────────────────────────────────── */
+.seat.allin-flash .seat-avatar{
+  border-color:#FF9F0A !important;
+  animation:allin-pulse .55s ease-in-out 4 alternate !important
+}
+@keyframes allin-pulse{
+  from{box-shadow:0 0 8px rgba(255,159,10,.55)}
+  to  {box-shadow:0 0 28px rgba(255,159,10,1),0 0 55px rgba(255,159,10,.4)}
+}
+/* ── Community card deal animation ───────────────────── */
+@keyframes card-deal{
+  from{opacity:0;transform:translateY(-28px) scale(.75)}
+  to  {opacity:1;transform:translateY(0) scale(1)}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Lobby ───────────────────────────────────────────── -->
+<div id="lobby" class="screen">
+  <div class="logo">♠</div>
+  <div class="title">德州扑克</div>
+  <div class="subtitle">Texas Hold'em</div>
+  <div class="input-group">
+    <label>你的昵称</label>
+    <input type="text" id="name-input" placeholder="输入昵称..." maxlength="12" autocomplete="off">
+  </div>
+  <button class="btn-primary" id="btn-create">创建房间</button>
+  <button class="btn-secondary" id="btn-go-join">加入游戏</button>
+</div>
+
+<!-- ── Join ────────────────────────────────────────────── -->
+<div id="join" class="screen">
+  <div class="screen-header">
+    <button class="back-btn" id="btn-back-lobby">←</button>
+    <span class="screen-title">加入游戏</span>
+  </div>
+  <div class="section-label">输入房间代码</div>
+  <div class="join-code-row">
+    <input type="text" id="code-input" placeholder="如: A3F8C2" maxlength="6"
+      autocomplete="off" autocapitalize="characters" style="text-transform:uppercase">
+    <button class="btn-small" id="btn-join-code">加入</button>
+  </div>
+  <div class="divider">或选择房间</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+    <div class="section-label" style="margin-top:0">可用房间</div>
+    <button id="btn-refresh-rooms" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:rgba(255,255,255,.7);font-size:12px;padding:4px 10px;cursor:pointer">↻ 刷新</button>
+  </div>
+  <div id="rooms-list"><div class="empty-hint">暂无可加入的房间</div></div>
+</div>
+
+<!-- ── Waiting Room ─────────────────────────────────────── -->
+<div id="waiting" class="screen">
+  <div class="screen-header">
+    <button class="back-btn" id="btn-leave-room">←</button>
+    <span class="screen-title">等待室</span>
+  </div>
+  <div class="code-box">
+    <div class="code-label">房间代码 — 分享给朋友</div>
+    <div class="code-value" id="display-code">------</div>
+    <div class="code-hint">点击代码复制</div>
+  </div>
+  <div class="section-label">玩家 (<span id="player-count">0</span>/8)</div>
+  <div id="waiting-players"></div>
+  <div id="host-config" style="display:none">
+    <div class="section-label">游戏设置</div>
+    <div class="config-row">
+      <label>单次买入上限 (筹码)</label>
+      <input type="number" id="input-buyin-max" value="1000" min="100" step="100">
+    </div>
+  </div>
+  <div class="waiting-footer">
+    <button class="btn-primary" id="btn-start" style="display:none">开始游戏</button>
+    <div class="waiting-msg" id="waiting-msg">等待房主开始游戏…</div>
+  </div>
+</div>
+
+<!-- ── Game ────────────────────────────────────────────── -->
+<div id="game" class="screen">
+  <button id="btn-exit-game" title="退出牌局">✕ 退出</button>
+  <button id="btn-history">📋 历史</button>
+  <button id="btn-end-game">⏹ 结束游戏</button>
+  <div id="table-wrap">
+    <div id="table-felt"></div>
+    <div id="community-area">
+      <div id="phase-badge"></div>
+      <div id="community-cards"></div>
+      <div id="pot-display"></div>
+      <div id="next-hand-countdown"></div>
+    </div>
+    <div id="seats"></div>
+  </div>
+  <div id="pending-end-notice">房主已申请结束游戏，本局结束后进行结算</div>
+  <div id="bottom-panel">
+    <div id="my-area">
+      <div id="my-info-row">
+        <div id="my-chips"></div>
+        <div id="my-hand-name"></div>
+      </div>
+      <div id="my-cards-row"></div>
+    </div>
+    <div id="action-row">
+      <button class="action-btn" id="btn-fold" disabled>弃牌</button>
+      <button class="action-btn" id="btn-check-call" disabled>-</button>
+      <button class="action-btn" id="btn-raise" disabled>加注</button>
+    </div>
+    <div id="raise-panel" style="display:none">
+      <div id="raise-amount-display">0</div>
+      <input type="range" id="raise-slider" min="0" max="100" value="0">
+      <div class="raise-presets">
+        <button class="preset-btn" data-frac="0.33">1/3池</button>
+        <button class="preset-btn" data-frac="0.5">半池</button>
+        <button class="preset-btn" data-frac="1">全池</button>
+        <button class="preset-btn" data-allin="1">All In</button>
+      </div>
+      <div class="raise-confirm-row">
+        <button id="btn-raise-cancel">取消</button>
+        <button id="btn-raise-confirm">确认加注</button>
+      </div>
+    </div>
+    <div id="buyin-panel">
+      <div class="buyin-title">筹码耗尽</div>
+      <div class="buyin-loan" id="buyin-loan-info"></div>
+      <button id="btn-buyin">买入筹码</button>
+    </div>
+  </div>
+  <div id="game-waiting-overlay">
+    <div class="spinner"></div>
+    <div style="color:#aaa;font-size:14px">等待开始…</div>
+  </div>
+
+  <!-- Hand history panel -->
+  <div id="history-panel">
+    <div id="history-header">
+      <span id="history-header-title">历史牌局</span>
+      <button id="btn-close-history">✕</button>
+    </div>
+    <div id="history-list"></div>
+  </div>
+
+  <!-- Buy-in amount modal (shared by all buy-in buttons) -->
+  <div id="buyin-modal">
+    <div class="buyin-modal-box">
+      <div class="buyin-modal-title">买入筹码</div>
+      <div class="buyin-modal-loan" id="buyin-modal-loan"></div>
+      <div class="buyin-modal-amount" id="buyin-modal-amount">1000</div>
+      <div class="buyin-slider-wrap">
+        <input type="range" id="buyin-modal-slider" min="100" step="100" value="1000">
+      </div>
+      <div class="buyin-slider-labels">
+        <span>100</span>
+        <span id="buyin-modal-max-label">1000</span>
+      </div>
+      <div class="buyin-modal-btns">
+        <button id="btn-buyin-modal-cancel">取消</button>
+        <button id="btn-buyin-modal-confirm">确认买入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spectator banner -->
+  <div id="spectator-banner">
+    <span>👀 观战中</span>
+    <span id="spectator-hint">下一局开始后自动上桌</span>
+    <button id="btn-buyin-banner" style="display:none"></button>
+  </div>
+  <!-- Fold-win minimal banner (replaces old result overlay for won-by-fold) -->
+  <div id="fold-win-banner">
+    <div id="fold-win-title" style="font-size:16px;font-weight:800;color:#FFD700"></div>
+    <div id="fold-win-footer" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center"></div>
+  </div>
+
+  <!-- Keep result-overlay only for buy-in prompts during real showdown -->
+  <div id="result-overlay">
+    <div class="result-card">
+      <div id="result-footer"></div>
+    </div>
+  </div>
+  <div id="final-overlay">
+    <div class="final-card">
+      <div class="final-title">🏆 游戏结束 · 最终结算</div>
+      <div id="final-body"></div>
+      <button id="btn-final-exit" style="margin-top:16px;width:100%;padding:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;color:#fff;font-size:15px;font-weight:600;cursor:pointer">退出游戏</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Reconnecting overlay (shown on load & disconnect) ─── -->
+<div id="reconnect-overlay">
+  <div class="logo">♠</div>
+  <div class="spinner"></div>
+  <div class="reconnect-msg" id="reconnect-msg">连接中…</div>
+  <div class="reconnect-sub" id="reconnect-sub"></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ── Constants ──────────────────────────────────────────────
+const SUIT_SYM   = { s:'♠', h:'♥', d:'♦', c:'♣' };
+const SUIT_COLOR = { s:'#111', h:'#d32f2f', d:'#d32f2f', c:'#111' };
+const SEAT_POS   = [
+  [50, 87], [81, 73], [93, 47], [80, 19],
+  [50,  8], [20, 19], [ 7, 47], [19, 73],
+];
+const PHASE_LABEL = { waiting:'等待', preflop:'翻牌前', flop:'翻牌', turn:'转牌', river:'河牌', showdown:'摊牌' };
+const TURN_SEC = 30;
+const SESSION_KEY = 'poker_session';
+
+// ── State ──────────────────────────────────────────────────
+let socket;
+let myId = null, myName = '', roomCode = null;
+let gameState = null;
+let timerInterval = null;
+let raiseMin = 0, raiseMax = 0;
+let prevBets = {};        // playerId -> roundBet
+let prevLastActions = {}; // playerId -> lastAction, for action animation detection
+let prevCommunityCount = 0; // for community card deal animation
+let chipAnimKey = null;   // prevents re-triggering chip animation on re-renders
+let countdownInterval = null;
+let prevGamePhase = null;
+let dealingState = null; // { cardsShown:[[bool,bool],...], revealed:bool } | null
+
+// ── Session helpers ────────────────────────────────────────
+function saveSession() {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ playerId: myId, roomCode, name: myName }));
+}
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
+}
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+  myId = null; roomCode = null;
+}
+
+// ── UI helpers ─────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function rankLabel(r) { return r===11?'J':r===12?'Q':r===13?'K':r===14?'A':String(r); }
+
+function showToast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), dur);
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showReconnecting(msg='重连中…', sub='请保持网络连接') {
+  document.getElementById('reconnect-msg').textContent = msg;
+  document.getElementById('reconnect-sub').textContent = sub;
+  document.getElementById('reconnect-overlay').classList.remove('hidden');
+}
+function hideReconnecting() {
+  document.getElementById('reconnect-overlay').classList.add('hidden');
+}
+
+// ── Action animation ───────────────────────────────────────
+// action: lastAction string ('跟注','加注','弃牌','过牌','全押')
+// amount: chip delta (used for call/raise/allin labels)
+function showActionAnimation(leftPct, topPct, action, amount) {
+  const styles = {
+    '加注': { bg:'linear-gradient(135deg,#FFD700,#e6a800)', color:'#000', label:'+'+amount },
+    '跟注': { bg:'linear-gradient(135deg,#1976D2,#1565C0)', color:'#fff', label:'+'+amount },
+    '全押': { bg:'linear-gradient(135deg,#FF6B35,#e65100)', color:'#fff', label: amount>0 ? `All In +${amount}` : 'All In', big:true },
+    '弃牌': { bg:'linear-gradient(135deg,#c62828,#b71c1c)', color:'#fff', label:'弃牌' },
+    '过牌': { bg:'linear-gradient(135deg,#558b2f,#33691e)', color:'#fff', label:'过牌' },
+  };
+  const s = styles[action];
+  if (!s) return;
+  const wrap = document.getElementById('table-wrap');
+  const el = document.createElement('div');
+  el.className = s.big ? 'action-anim allin-big' : 'action-anim';
+  el.textContent = s.label;
+  el.style.background = s.bg;
+  el.style.color = s.color;
+  el.style.left = leftPct + '%';
+  el.style.top = topPct + '%';
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), s.big ? 2100 : 1500);
+  // 播放对应音效
+  if      (action === '全押') playAllinSound();
+  else if (action === '加注') playChipSound(true);
+  else if (action === '跟注') playChipSound(false);
+  else if (action === '弃牌') playFoldSound();
+  else if (action === '过牌') playCheckSound();
+}
+
+// ── Chip-to-winner animation ────────────────────────────────
+function animateChipsToWinners(state) {
+  if (!state.lastResult) return;
+
+  const wrap = document.getElementById('table-wrap');
+  const wrapRect = wrap.getBoundingClientRect();
+  const potEl = document.getElementById('pot-display');
+  const potRect = potEl.getBoundingClientRect();
+  const fromX = potRect.left + potRect.width / 2 - wrapRect.left;
+  const fromY = potRect.top  + potRect.height / 2 - wrapRect.top;
+
+  const myIdx = state.players.findIndex(p => p.id === state.myId);
+  const base  = myIdx >= 0 ? myIdx : 0;
+  const n     = state.players.length;
+
+  // Accumulate total winnings per player across all side pots
+  const winnerMap = {};
+  for (const r of state.lastResult) {
+    for (const w of r.winners) {
+      const share = Math.floor(r.potAmount / r.winners.length);
+      winnerMap[w.id] = (winnerMap[w.id] || 0) + share;
+    }
+  }
+
+  let groupDelay = 0;
+  for (const [winnerId, amount] of Object.entries(winnerMap)) {
+    const pidx = state.players.findIndex(p => p.id === winnerId);
+    if (pidx < 0) continue;
+    const slot = (pidx - base + n) % n;
+    const [lp, tp] = SEAT_POS[slot] || [50, 50];
+    const toX = wrapRect.width  * lp / 100;
+    const toY = wrapRect.height * tp / 100;
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    const count = Math.min(12, Math.max(4, Math.ceil(amount / 70)));
+
+    for (let i = 0; i < count; i++) {
+      const chip = document.createElement('div');
+      chip.className = 'chip-fly';
+      chip.style.left = fromX + 'px';
+      chip.style.top  = fromY + 'px';
+      wrap.appendChild(chip);
+
+      const jx = (Math.random() - 0.5) * 22;
+      const jy = (Math.random() - 0.5) * 22;
+      chip.animate([
+        { transform: 'translate(-50%,-50%) scale(1)',                                                    opacity: 1 },
+        { transform: `translate(calc(-50% + ${dx+jx}px),calc(-50% + ${dy+jy}px)) scale(.7)`,  opacity: 0.9, offset: 0.78 },
+        { transform: `translate(calc(-50% + ${dx+jx}px),calc(-50% + ${dy+jy}px)) scale(.15)`, opacity: 0 },
+      ], {
+        duration: 780,
+        delay: groupDelay + i * 52,
+        easing: 'cubic-bezier(.2,.5,.3,1)',
+        fill: 'forwards',
+      }).addEventListener('finish', () => chip.remove());
+    }
+    groupDelay += 120; // stagger between multiple winners
+  }
+}
+
+// ── Deal cards animation ────────────────────────────────────
+function triggerDealAnimation(state) {
+  const n = state.players.length;
+  // 初始化发牌状态：所有牌都未出现
+  dealingState = {
+    cardsShown: Array.from({length: n}, () => [false, false]),
+    revealed: false,
+  };
+
+  const wrap = document.getElementById('table-wrap');
+  const wrapRect = wrap.getBoundingClientRect();
+  const fromX = wrapRect.width  * 0.5;
+  const fromY = wrapRect.height * 0.5;
+
+  let delay = 0;
+  let cardsDealt = 0;
+  const totalCards = n * 2;
+
+  for (let round = 0; round < 2; round++) {
+    for (let slot = 0; slot < n; slot++) {
+      const [lp, tp] = SEAT_POS[slot] || [50, 50];
+      const toX = wrapRect.width  * lp / 100;
+      const toY = wrapRect.height * tp / 100;
+      const dx  = toX - fromX;
+      const dy  = toY - fromY;
+
+      const el = document.createElement('div');
+      el.style.cssText = [
+        `position:absolute`,
+        `left:${fromX}px`, `top:${fromY}px`,
+        `width:19px`, `height:28px`, `border-radius:3px`,
+        `background-color:#7B1010`,
+        `background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.14) 0,rgba(255,255,255,.14) 1px,transparent 0,transparent 5px),` +
+          `repeating-linear-gradient(-45deg,rgba(255,255,255,.14) 0,rgba(255,255,255,.14) 1px,transparent 0,transparent 5px)`,
+        `border:1.5px solid rgba(255,255,255,.35)`,
+        `box-shadow:inset 0 0 0 2px rgba(0,0,0,.3),inset 0 0 0 3px rgba(255,255,255,.18),0 3px 10px rgba(0,0,0,.85)`,
+        `pointer-events:none`, `z-index:22`,
+        `transform:translate(-50%,-50%)`,
+      ].join(';');
+      wrap.appendChild(el);
+
+      const capturedSlot = slot, capturedRound = round;
+      el.animate([
+        { transform: 'translate(-50%,-50%) scale(1.1)',                                                      opacity: 1 },
+        { transform: `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(0.9)`, opacity: 1, offset: 0.75 },
+        { transform: `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(0)`,  opacity: 0 },
+      ], {
+        duration: 320, delay,
+        easing: 'cubic-bezier(.25,.55,.3,1)',
+        fill: 'forwards',
+      }).addEventListener('finish', () => {
+        el.remove();
+        if (!dealingState) return;
+        playDealSound();
+        // 牌落地：在座位上显示面朝下的牌
+        dealingState.cardsShown[capturedSlot][capturedRound] = true;
+        renderSeats(gameState);
+        // 同步更新自己底部手牌区（slot 0 = 自己）
+        if (capturedSlot === 0) updateMyCardsDuringDeal();
+
+        cardsDealt++;
+        if (cardsDealt === totalCards) {
+          // 所有牌发完，延迟 200ms 翻开自己的牌
+          setTimeout(() => {
+            if (!dealingState) return;
+            dealingState.revealed = true;
+            const me = gameState?.players?.find(p => p.id === gameState.myId);
+            if (me && me.holeCards.length > 0) {
+              document.getElementById('my-cards-row').innerHTML =
+                me.holeCards.map((c, i) => cardHtml(c, true, i * 150)).join('');
+            }
+            // 600ms 后（翻牌动画播完）清除发牌状态，恢复正常渲染
+            setTimeout(() => { dealingState = null; }, 600);
+          }, 200);
+        }
+      });
+
+      delay += 65;
+    }
+    delay += 80;
+  }
+}
+
+function updateMyCardsDuringDeal() {
+  if (!dealingState || dealingState.revealed) return;
+  const shown = dealingState.cardsShown[0];
+  const count = (shown[0] ? 1 : 0) + (shown[1] ? 1 : 0);
+  document.getElementById('my-cards-row').innerHTML =
+    Array(count).fill(null).map(() => cardHtml(null, true)).join('');
+}
+
+// ── Chip-to-pot animation ───────────────────────────────────
+function animateChipsToPot(leftPct, topPct, amount) {
+  const wrap = document.getElementById('table-wrap');
+  const wrapRect = wrap.getBoundingClientRect();
+  const potEl = document.getElementById('pot-display');
+  const potRect = potEl.getBoundingClientRect();
+
+  const fromX = wrapRect.width  * leftPct / 100;
+  const fromY = wrapRect.height * topPct  / 100;
+  const toX   = potRect.left + potRect.width  / 2 - wrapRect.left;
+  const toY   = potRect.top  + potRect.height / 2 - wrapRect.top;
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const count = Math.min(8, Math.max(2, Math.ceil(amount / 80)));
+
+  for (let i = 0; i < count; i++) {
+    const chip = document.createElement('div');
+    chip.className = 'chip-fly';
+    chip.style.left = fromX + 'px';
+    chip.style.top  = fromY + 'px';
+    wrap.appendChild(chip);
+
+    const jx = (Math.random() - 0.5) * 14;
+    const jy = (Math.random() - 0.5) * 14;
+    chip.animate([
+      { transform: 'translate(-50%,-50%) scale(1)',                                                      opacity: 1 },
+      { transform: `translate(calc(-50% + ${dx+jx}px),calc(-50% + ${dy+jy}px)) scale(.55)`, opacity: 0.85, offset: 0.72 },
+      { transform: `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(.15)`,       opacity: 0 },
+    ], {
+      duration: 550,
+      delay: i * 38,
+      easing: 'cubic-bezier(.2,.6,.3,1)',
+      fill: 'forwards',
+    }).addEventListener('finish', () => chip.remove());
+  }
+}
+
+// ── Card rendering ─────────────────────────────────────────
+function cardHtml(card, big=false, flipDelay=null) {
+  const flip = flipDelay !== null
+    ? `;animation:card-reveal .35s ${flipDelay}ms cubic-bezier(.34,1.2,.64,1) both` : '';
+  if (!card) return `<div class="card back${big?' big':''}"></div>`;
+  const col = SUIT_COLOR[card.suit];
+  return `<div class="card${big?' big':''}" style="color:${col}${flip}">
+    <span class="card-rank">${rankLabel(card.rank)}</span>
+    <span class="card-suit">${SUIT_SYM[card.suit]}</span>
+  </div>`;
+}
+function miniCardHtml(card, revealDelay = 0, large = false) {
+  const sz = large ? ' showdown' : '';
+  if (!card) return `<div class="mini-card back${sz}"></div>`;
+  const col = SUIT_COLOR[card.suit];
+  const styleStr = revealDelay > 0
+    ? `color:${col};animation-delay:${revealDelay}ms`
+    : `color:${col}`;
+  return `<div class="mini-card reveal${sz}" style="${styleStr}">
+    ${rankLabel(card.rank)}<br>${SUIT_SYM[card.suit]}</div>`;
+}
+
+// ── Audio engine (file-based, Web Audio API) ────────────────
+let _actx = null;
+function actx() {
+  if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_actx.state === 'suspended') _actx.resume();
+  return _actx;
+}
+document.addEventListener('click', () => { if (_actx && _actx.state === 'suspended') _actx.resume(); }, { passive: true });
+
+const SOUNDS = {};
+
+async function _loadSound(key, path) {
+  try {
+    const res = await fetch(path);
+    if (!res.ok) return;
+    const buf = await res.arrayBuffer();
+    SOUNDS[key] = await actx().decodeAudioData(buf);
+  } catch(e) {}
+}
+
+async function initSounds() {
+  await Promise.all([
+    _loadSound('deal',  '/sounds/new/oga-draw.wav'),
+    _loadSound('fold',  '/sounds/card-shove-1.ogg'),
+    _loadSound('check', '/sounds/preview/check-mixkit-woodhit.mp3'),
+    _loadSound('call',  '/sounds/chip-lay-3.ogg'),
+    _loadSound('raise', '/sounds/raise.mp3'),
+    _loadSound('allin', '/sounds/allin.mp3'),
+    _loadSound('win',   '/sounds/win.mp3'),
+  ]);
+}
+
+function _playBuf(buf, volume = 1) {
+  if (!buf) return;
+  try {
+    const ctx = actx();
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = volume;
+    src.connect(g);
+    g.connect(ctx.destination);
+    src.start();
+  } catch(e) {}
+}
+
+function playDealSound()  { _playBuf(SOUNDS.deal,   0.7); }
+function playFoldSound()  { _playBuf(SOUNDS.fold,   0.8); }
+function playCheckSound() {
+  // 敲桌两下
+  _playBuf(SOUNDS.check, 0.6);
+  setTimeout(() => _playBuf(SOUNDS.check, 0.6), 220);
+}
+function playChipSound(isRaise = false) {
+  _playBuf(isRaise ? SOUNDS.raise : SOUNDS.call, 0.75);
+}
+function playAllinSound() { _playBuf(SOUNDS.allin,  0.9); }
+function playWinSound()   { _playBuf(SOUNDS.win,    0.85); }
+
+// ── Socket init ────────────────────────────────────────────
+function initSocket() {
+  socket = io({ reconnection: true, reconnectionDelay: 1000, reconnectionAttempts: 10 });
+
+  socket.on('connect', () => {
+    // Either: page refresh with stored session, or background reconnect
+    const session = loadSession();
+    const idToRejoin  = myId || session?.playerId;
+    const rcToRejoin  = roomCode || session?.roomCode;
+
+    if (idToRejoin && rcToRejoin) {
+      // Restore name if coming from localStorage
+      if (!myId) myName = session.name;
+
+      showReconnecting('重连中…', '正在恢复游戏状态');
+      socket.emit('rejoin_room', { playerId: idToRejoin, roomCode: rcToRejoin }, (res) => {
+        if (res.error) {
+          clearSession();
+          hideReconnecting();
+          showScreen('lobby');
+          showToast('会话已过期，请重新加入');
+          return;
+        }
+        myId = idToRejoin;
+        roomCode = rcToRejoin;
+        saveSession();
+        hideReconnecting();
+
+        if (res.phase === 'waiting') {
+          document.getElementById('display-code').textContent = roomCode;
+          showScreen('waiting');
+        }
+        // game_state event will handle switching to game screen
+      });
+    } else {
+      hideReconnecting();
+      showScreen('lobby');
+    }
+  });
+
+  socket.on('disconnect', (reason) => {
+    // Only show reconnecting overlay if we're actively in a session
+    if (myId) {
+      showReconnecting('断线重连中…', reason === 'transport close' ? '网络已断开' : '连接丢失');
+    }
+  });
+
+  socket.on('connect_error', () => {
+    if (myId) showReconnecting('连接失败', '正在重试…');
+  });
+
+  socket.on('rooms_list', (list) => {
+    const el = document.getElementById('rooms-list');
+    if (!list.length) { el.innerHTML = '<div class="empty-hint">暂无可加入的房间</div>'; return; }
+    el.innerHTML = list.map(r => `
+      <div class="room-item" data-code="${esc(r.code)}">
+        <div class="room-info">
+          <div class="room-code">${esc(r.code)}
+            ${r.inProgress ? '<span style="font-size:10px;background:#e65100;padding:1px 5px;border-radius:3px;margin-left:6px;font-weight:700">游戏中</span>' : ''}
+          </div>
+          <div class="room-host">房主: ${esc(r.hostName)}</div>
+        </div>
+        <div class="room-count">${r.playerCount}/8 人</div>
+      </div>`).join('');
+    el.querySelectorAll('.room-item').forEach(el => {
+      el.addEventListener('click', () => joinRoom(el.dataset.code));
+    });
+  });
+
+  socket.on('room_update', (info) => {
+    if (document.getElementById('waiting').classList.contains('active')) {
+      renderWaiting(info);
+    }
+    // Game started: switch from waiting to game screen
+    if (info.phase !== 'waiting' && document.getElementById('waiting').classList.contains('active')) {
+      showScreen('game');
+    }
+  });
+
+  socket.on('game_state', (state) => {
+    gameState = state;
+    if (!document.getElementById('game').classList.contains('active')) showScreen('game');
+    renderGame(state);
+  });
+}
+
+// ── Lobby actions ──────────────────────────────────────────
+document.getElementById('btn-create').addEventListener('click', () => {
+  myName = document.getElementById('name-input').value.trim();
+  if (!myName) { showToast('请输入昵称'); return; }
+  socket.emit('create_room', { name: myName }, (res) => {
+    if (res.error) { showToast(res.error); return; }
+    myId = res.playerId;
+    roomCode = res.roomCode;
+    saveSession();
+    document.getElementById('display-code').textContent = roomCode;
+    showScreen('waiting');
+  });
+});
+
+document.getElementById('btn-go-join').addEventListener('click', () => {
+  myName = document.getElementById('name-input').value.trim();
+  if (!myName) { showToast('请输入昵称'); return; }
+  socket.emit('get_rooms');
+  showScreen('join');
+});
+
+document.getElementById('btn-back-lobby').addEventListener('click', () => showScreen('lobby'));
+
+document.getElementById('btn-refresh-rooms').addEventListener('click', function() {
+  socket.emit('get_rooms');
+  this.textContent = '↻ 刷新中…';
+  this.disabled = true;
+  setTimeout(() => { this.textContent = '↻ 刷新'; this.disabled = false; }, 800);
+});
+
+document.getElementById('btn-join-code').addEventListener('click', () => {
+  const code = document.getElementById('code-input').value.trim().toUpperCase();
+  if (!code) { showToast('请输入房间代码'); return; }
+  joinRoom(code);
+});
+
+document.getElementById('code-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-join-code').click();
+});
+
+function joinRoom(code) {
+  socket.emit('join_room', { name: myName, roomCode: code }, (res) => {
+    if (res.error) { showToast(res.error); return; }
+    myId = res.playerId;
+    roomCode = res.roomCode;
+    saveSession();
+    document.getElementById('display-code').textContent = roomCode;
+    showScreen('waiting');
+  });
+}
+
+document.getElementById('display-code').addEventListener('click', () => {
+  navigator.clipboard?.writeText(roomCode).then(() => showToast('代码已复制'));
+});
+
+document.getElementById('btn-leave-room').addEventListener('click', () => {
+  socket.emit('leave_room', () => {
+    clearSession();
+    showScreen('lobby');
+  });
+});
+
+document.getElementById('btn-start').addEventListener('click', () => {
+  socket.emit('start_game', (res) => {
+    if (res?.error) showToast(res.error);
+  });
+});
+
+// ── Waiting room render ────────────────────────────────────
+function renderWaiting(info) {
+  document.getElementById('player-count').textContent = info.playerCount;
+  document.getElementById('waiting-players').innerHTML = info.players.map(p => `
+    <div class="player-item">
+      <div class="player-avatar-sm">${esc(p.name.charAt(0).toUpperCase())}</div>
+      <div>
+        <span class="player-name-sm">${esc(p.name)}</span>
+        ${p.id === info.hostId ? '<span class="host-tag">房主</span>' : ''}
+      </div>
+    </div>`).join('');
+
+  // Show start button only for the host
+  const amHost = info.hostId === myId;
+  document.getElementById('btn-start').style.display = amHost ? 'block' : 'none';
+  document.getElementById('waiting-msg').style.display = amHost ? 'none' : 'block';
+
+  const hostConfig = document.getElementById('host-config');
+  hostConfig.style.display = amHost ? 'block' : 'none';
+  if (amHost && info.maxBuyIn) {
+    document.getElementById('input-buyin-max').value = info.maxBuyIn;
+  }
+}
+
+// ── Game render ────────────────────────────────────────────
+function renderGame(state) {
+  const isWaiting = state.phase === 'waiting';
+
+  // 只要切入 preflop（首局、每局开始、重连）就触发发牌动画
+  const isNewHand = state.phase === 'preflop' && prevGamePhase !== 'preflop';
+  prevGamePhase = state.phase;
+
+  document.getElementById('game-waiting-overlay').style.display = isWaiting ? 'flex' : 'none';
+  if (isWaiting) return;
+
+  if (isNewHand) triggerDealAnimation(state);
+
+  // Reset chip animation key when leaving showdown
+  if (state.phase !== 'showdown') {
+    chipAnimKey = null;
+    document.getElementById('fold-win-banner').classList.remove('visible');
+  }
+
+  // Handle ended phase
+  if (state.phase === 'ended') {
+    startCountdown(null);
+    renderFinalLeaderboard(state.finalRankings || []);
+    return;
+  }
+
+  // Spectator mode: show banner, hide action area and my cards
+  const banner = document.getElementById('spectator-banner');
+  const bottomPanel = document.getElementById('bottom-panel');
+  const buyinBannerBtn = document.getElementById('btn-buyin-banner');
+  if (state.isSpectator) {
+    banner.classList.add('visible');
+    bottomPanel.style.display = 'none';
+    if (state.isBrokeSpectator && state.canBuyIn) {
+      // Broke spectator: show buy-in button in banner
+      document.getElementById('spectator-hint').textContent = '买入筹码后可加入下一局';
+      buyinBannerBtn.textContent = '买入筹码';
+      buyinBannerBtn.style.display = 'block';
+    } else {
+      document.getElementById('spectator-hint').textContent = '下一局开始后自动上桌';
+      buyinBannerBtn.style.display = 'none';
+    }
+  } else {
+    banner.classList.remove('visible');
+    buyinBannerBtn.style.display = 'none';
+    bottomPanel.style.display = 'flex';
+  }
+
+  // End game button visibility (host only)
+  document.getElementById('btn-end-game').style.display =
+    (state.isHost && !state.pendingEnd) ? 'block' : 'none';
+
+  // Pending end notice
+  document.getElementById('pending-end-notice').style.display =
+    state.pendingEnd ? 'block' : 'none';
+
+  // Buy-in panel (for active player still in this.players with 0 chips during showdown)
+  const buyinPanel = document.getElementById('buyin-panel');
+  const actionRow = document.getElementById('action-row');
+  if (!state.isSpectator && state.canBuyIn) {
+    buyinPanel.style.display = 'flex';
+    actionRow.style.display = 'none';
+    document.getElementById('buyin-loan-info').textContent =
+      state.myTotalLoaned > 0 ? `累计借入: ${state.myTotalLoaned} 筹码` : '首次买入';
+  } else {
+    buyinPanel.style.display = 'none';
+    if (!document.getElementById('raise-panel').style.display ||
+        document.getElementById('raise-panel').style.display === 'none') {
+      actionRow.style.display = 'flex';
+    }
+  }
+
+  document.getElementById('phase-badge').textContent = PHASE_LABEL[state.phase] || state.phase;
+  document.getElementById('pot-display').textContent = state.pot > 0 ? `底池 ${state.pot}` : '';
+
+  // Community cards with deal animation for newly added cards
+  const prevCount = prevCommunityCount;
+  prevCommunityCount = state.communityCards.length;
+  document.getElementById('community-cards').innerHTML =
+    state.communityCards.map((c, i) => {
+      if (!c) return `<div class="card back"></div>`;
+      const col = SUIT_COLOR[c.suit];
+      const delay = i >= prevCount ? (i - prevCount) * 140 : -1;
+      if (delay >= 0) setTimeout(() => playDealSound(), delay);
+      const anim = delay >= 0 ? `animation:card-deal .4s ${delay}ms cubic-bezier(.34,1.2,.64,1) both` : '';
+      return `<div class="card" style="color:${col};${anim}">
+        <span class="card-rank">${rankLabel(c.rank)}</span>
+        <span class="card-suit">${SUIT_SYM[c.suit]}</span>
+      </div>`;
+    }).join('') || '<div style="color:rgba(255,255,255,.18);font-size:12px">公共牌</div>';
+
+  const me = state.players.find(p => p.id === state.myId);
+  if (me) {
+    document.getElementById('my-chips').textContent = `筹码: ${me.chips}`;
+    document.getElementById('my-hand-name').textContent = me.handName || '';
+    if (!dealingState) {
+      // 正常渲染
+      document.getElementById('my-cards-row').innerHTML = me.holeCards.map(c => cardHtml(c, true)).join('');
+    } else if (!dealingState.revealed) {
+      // 发牌中：按已落地数量显示面朝下的牌
+      updateMyCardsDuringDeal();
+    }
+    // dealingState.revealed = true 时不干预，让翻牌动画自然播放
+  }
+
+  renderSeats(state);
+  renderActions(state.actions);
+  renderResult(state);
+  startTimer(state.timerDeadline);
+  startCountdown(state.phase === 'showdown' ? state.nextHandAt : null);
+}
+
+function renderSeats(state) {
+  const rawIdx = state.players.findIndex(p => p.id === state.myId);
+  const myIdx = rawIdx >= 0 ? rawIdx : 0; // spectators: no rotation, start from seat 0
+  const n = state.players.length;
+  const container = document.getElementById('seats');
+  container.innerHTML = '';
+
+  const isShowdown = state.phase === 'showdown';
+  const winnerIds = (isShowdown && state.lastResult)
+    ? new Set(state.lastResult.flatMap(r => r.winners.map(w => w.id)))
+    : new Set();
+
+  for (let slot = 0; slot < n; slot++) {
+    const player = state.players[(myIdx + slot) % n];
+    const [left, top] = SEAT_POS[slot] || [50, 50];
+    const isMe = player.id === state.myId;
+    const isWinner = winnerIds.has(player.id);
+
+    // Detect action changes and show corresponding animation
+    const prevAction = prevLastActions[player.id] ?? null;
+    const prevBet = prevBets[player.id] || 0;
+    if (state.phase !== 'showdown') {
+      const actionChanged = player.lastAction && player.lastAction !== prevAction;
+      const delta = player.roundBet - prevBet;
+      // 浮动文字：action变化时，或同一动作再次下注（连续加注场景）
+      if (actionChanged || (delta > 0 && player.lastAction && ['加注', '全押'].includes(player.lastAction))) {
+        showActionAnimation(left, top, player.lastAction, delta > 0 ? delta : 0);
+      }
+      // 筹码飞向底池：只要下注额增加就触发（解决连续跟注/再跟注场景）
+      if (delta > 0 && player.lastAction && ['跟注', '加注', '全押'].includes(player.lastAction)) {
+        animateChipsToPot(left, top, delta);
+      }
+    }
+    prevLastActions[player.id] = player.lastAction ?? null;
+    prevBets[player.id] = player.roundBet;
+
+    const isAllinFlash = player.lastAction === '全押' && !isShowdown;
+    const classes = ['seat', isMe?'me':'', player.isCurrent?'current':'',
+      player.folded?'folded':'', player.disconnected?'disconnected':'',
+      isWinner?'winner':'', isAllinFlash?'allin-flash':''].filter(Boolean).join(' ');
+
+    const timerSvg = player.isCurrent ? `<svg class="timer-ring" viewBox="0 0 54 54">
+      <circle class="timer-fill" cx="27" cy="27" r="22"
+        stroke-dasharray="138.2" stroke-dashoffset="0"/></svg>` : '';
+
+    let actionBadge = '';
+    if (player.lastAction && !isShowdown) {
+      const cls = player.lastAction==='弃牌'?'fold':
+                  (player.lastAction==='加注'||player.lastAction==='全押')?'raise':
+                  player.lastAction==='过牌'?'check':'';
+      const badgeText = player.lastAction === '全押' ? 'All In' : player.lastAction;
+      actionBadge = `<div class="action-badge ${cls}">${esc(badgeText)}</div>`;
+    }
+
+    const roles = [
+      player.isDealer && n>2 ? '<span class="badge D">D</span>' : '',
+      player.isSB ? '<span class="badge SB">SB</span>' : '',
+      player.isBB ? '<span class="badge BB">BB</span>' : '',
+    ].join('');
+
+    // Mini cards
+    let miniCards = '';
+    if (!isMe && player.holeCards.length > 0) {
+      let cardsHtml;
+      if (dealingState) {
+        // 发牌动画期间：按已落地的牌数显示面朝下的牌
+        const shown = dealingState.cardsShown[slot] || [false, false];
+        cardsHtml = [0, 1].filter(i => shown[i])
+          .map(() => '<div class="mini-card back"></div>').join('');
+      } else {
+        cardsHtml = player.holeCards.map((c, i) => {
+          if (isShowdown && c && !player.folded) {
+            return miniCardHtml(c, i * 120, true);
+          }
+          return '<div class="mini-card back"></div>';
+        }).join('');
+      }
+      if (cardsHtml) miniCards = `<div class="seat-mini-cards">${cardsHtml}</div>`;
+    }
+
+    // Hand name badge (showdown only)
+    const handBadge = (isShowdown && player.handName && !player.folded)
+      ? `<div class="hand-badge ${isWinner?'winner':''}">${esc(player.handName)}</div>`
+      : '';
+
+    // Win amount badge (showdown only, for winners)
+    let winAmount = 0;
+    if (isShowdown && state.lastResult) {
+      for (const r of state.lastResult) {
+        const w = r.winners.find(w => w.id === player.id);
+        if (w) winAmount += Math.floor(r.potAmount / r.winners.length);
+      }
+    }
+    const winBadge = winAmount > 0
+      ? `<div class="seat-win-badge" style="animation-delay:${slot*60+400}ms">+${winAmount}</div>`
+      : '';
+
+    const div = document.createElement('div');
+    div.className = classes;
+    div.style.cssText = `left:${left}%;top:${top}%`;
+    div.innerHTML = `
+      <div class="seat-avatar-wrap">
+        ${timerSvg}
+        <div class="seat-avatar">${esc(player.name.charAt(0).toUpperCase())}</div>
+        ${actionBadge}
+      </div>
+      <div class="seat-name">${esc(player.name)}</div>
+      <div class="seat-chips">${player.chips}</div>
+      ${player.totalLoaned > 0 ? `<div class="seat-loan">借 ${player.totalLoaned}</div>` : ''}
+      ${player.roundBet > 0 ? `<div class="seat-bet">🪙 ${player.roundBet}</div>` : ''}
+      <div class="seat-role-badges">${roles}</div>
+      ${miniCards}
+      ${handBadge}
+      ${winBadge}`;
+    container.appendChild(div);
+  }
+}
+
+function renderActions(actions) {
+  const fold = document.getElementById('btn-fold');
+  const cc   = document.getElementById('btn-check-call');
+  const raise = document.getElementById('btn-raise');
+  if (!actions) {
+    [fold, cc, raise].forEach(b => b.disabled = true);
+    document.getElementById('raise-panel').style.display = 'none';
+    return;
+  }
+  fold.disabled  = !actions.canFold;
+  cc.disabled    = !actions.canCheck && !actions.canCall;
+  raise.disabled = !actions.canRaise;
+  cc.innerHTML   = actions.canCheck ? '过牌' : `跟注<br><small>${actions.callAmount}</small>`;
+
+  // Slider shows *additional* chips to put in (not the total "raise to" amount)
+  // actions.minRaise = total raise-to amount; me.roundBet = already bet this round
+  const me = gameState?.players?.find(p => p.id === gameState.myId);
+  raiseMin = actions.minRaise - (me?.roundBet || 0); // min extra chips
+  raiseMax = me?.chips || 0;                          // max extra = all remaining chips
+}
+
+function renderResult(state) {
+  const overlay = document.getElementById('result-overlay');
+  const banner  = document.getElementById('fold-win-banner');
+
+  if (state.phase !== 'showdown' || !state.lastResult) {
+    overlay.style.display = 'none';
+    banner.classList.remove('visible');
+    return;
+  }
+
+  const winnerIds = new Set(state.lastResult.flatMap(r => r.winners.map(w => w.id)));
+
+  // ── Trigger chip animation once per result ──────────────
+  const animKey = JSON.stringify(state.lastResult.map(r => r.winners.map(w => w.id)));
+  if (animKey !== chipAnimKey) {
+    chipAnimKey = animKey;
+    // Small delay so cards flip first (300ms), then chips fly
+    setTimeout(() => animateChipsToWinners(state), 320);
+    // Win sound if I'm a winner
+    const iWin = state.lastResult.some(r => r.winners.some(w => w.id === state.myId));
+    if (iWin) setTimeout(() => playWinSound(), 500);
+  }
+
+  // ── Buy-in overlay (minimal, no result summary) ─────────
+  const footer = document.getElementById('result-footer');
+  footer.innerHTML = '';
+  if (state.canBuyIn) {
+    const btn = document.createElement('button');
+    btn.id = 'btn-buyin-overlay';
+    btn.textContent = '买入筹码继续游戏';
+    btn.addEventListener('click', () => { openBuyInModal(); });
+    footer.appendChild(btn);
+  }
+  // Show overlay only when buy-in button is present
+  overlay.style.display = footer.children.length > 0 ? 'flex' : 'none';
+
+  // ── Real showdown: results shown on table, no popup ─────
+  if (state.revealAll) {
+    banner.classList.remove('visible');
+    return;
+  }
+
+  // ── Won-by-fold: show bottom banner ─────────────────────
+  const winnerNames = state.lastResult
+    .flatMap(r => r.winners.map(w => w.name))
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .join('、');
+  const totalPot = state.lastResult.reduce((s, r) => s + r.potAmount, 0);
+  document.getElementById('fold-win-title').textContent =
+    `🏆 ${winnerNames} 赢得 ${totalPot} 筹码`;
+
+  const fwFooter = document.getElementById('fold-win-footer');
+  fwFooter.innerHTML = '';
+  if (state.canShowCards) {
+    const btn = document.createElement('button');
+    btn.id = 'btn-show-cards';
+    btn.textContent = '亮牌给大家看';
+    btn.addEventListener('click', () => { socket.emit('show_cards'); banner.classList.remove('visible'); });
+    fwFooter.appendChild(btn);
+  }
+  banner.classList.add('visible');
+}
+
+function renderFinalLeaderboard(rankings) {
+  document.getElementById('game-waiting-overlay').style.display = 'none';
+  document.getElementById('result-overlay').style.display = 'none';
+  const overlay = document.getElementById('final-overlay');
+  const medals = ['🥇','🥈','🥉'];
+  document.getElementById('final-body').innerHTML = rankings.map((p, i) => {
+    const profitClass = p.netProfit > 0 ? 'pos' : p.netProfit < 0 ? 'neg' : 'zero';
+    const profitStr = p.netProfit > 0 ? `+${p.netProfit}` : String(p.netProfit);
+    return `<div class="lb-row${i===0?' first':''}" style="animation-delay:${i*80}ms">
+      <div class="lb-rank${i===0?' gold':''}">${medals[i]||i+1}</div>
+      <div class="lb-name">${esc(p.name)}</div>
+      <div class="lb-detail">
+        <div class="lb-chips">投入 ${p.invested} → 剩余 ${p.chips}</div>
+        <div class="lb-profit ${profitClass}">${profitStr}</div>
+      </div>
+    </div>`;
+  }).join('');
+  overlay.style.display = 'flex';
+}
+
+// ── Next-hand countdown ────────────────────────────────────
+function startCountdown(deadline) {
+  clearInterval(countdownInterval);
+  const el = document.getElementById('next-hand-countdown');
+  if (!deadline) { el.textContent = ''; return; }
+  const update = () => {
+    const sec = Math.ceil(Math.max(0, deadline - Date.now()) / 1000);
+    el.textContent = sec > 0 ? `${sec}s 后开始下一局` : '';
+    if (sec <= 0) clearInterval(countdownInterval);
+  };
+  update();
+  countdownInterval = setInterval(update, 500);
+}
+
+// ── Timer ──────────────────────────────────────────────────
+function startTimer(deadline) {
+  clearInterval(timerInterval);
+  // CSS has higher priority than SVG presentation attributes,
+  // so use el.style to override class-level stroke properties
+  if (!deadline) {
+    document.querySelectorAll('.timer-fill').forEach(el => {
+      el.style.strokeDashoffset = 0;
+      el.style.stroke = '#4CAF50';
+    });
+    return;
+  }
+  timerInterval = setInterval(() => {
+    const remaining = Math.max(0, deadline - Date.now());
+    const frac = remaining / (TURN_SEC * 1000);
+    const offset = 138.2 * (1 - frac);
+    const color  = frac > 0.5 ? '#4CAF50' : frac > 0.25 ? '#FF9800' : '#f44336';
+    document.querySelectorAll('.timer-fill').forEach(el => {
+      el.style.strokeDashoffset = offset;
+      el.style.stroke = color;
+    });
+    if (remaining === 0) clearInterval(timerInterval);
+  }, 200);
+}
+
+// When tab becomes visible again, re-sync timer from last known state
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && gameState) {
+    startTimer(gameState.timerDeadline);
+  }
+});
+
+// ── Action buttons ─────────────────────────────────────────
+document.getElementById('btn-fold').addEventListener('click', () =>
+  socket.emit('action', { action: 'fold' }));
+
+document.getElementById('btn-check-call').addEventListener('click', () => {
+  if (!gameState?.actions) return;
+  socket.emit('action', { action: gameState.actions.canCheck ? 'check' : 'call' });
+});
+
+document.getElementById('btn-raise').addEventListener('click', () => {
+  if (!gameState?.actions?.canRaise) return;
+  document.getElementById('raise-panel').style.display = 'flex';
+  document.getElementById('action-row').style.display = 'none';
+  const s = document.getElementById('raise-slider');
+  s.min = raiseMin; s.max = raiseMax; s.value = raiseMin;
+  document.getElementById('raise-amount-display').textContent = raiseMin;
+});
+
+document.getElementById('raise-slider').addEventListener('input', function() {
+  document.getElementById('raise-amount-display').textContent = this.value;
+});
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    let amount = btn.dataset.allin
+      ? raiseMax
+      : Math.max(raiseMin, Math.min(raiseMax, Math.round(gameState.pot * parseFloat(btn.dataset.frac))));
+    document.getElementById('raise-slider').value = amount;
+    document.getElementById('raise-amount-display').textContent = amount;
+  });
+});
+
+document.getElementById('btn-raise-cancel').addEventListener('click', hideRaisePanel);
+document.getElementById('btn-raise-confirm').addEventListener('click', () => {
+  const additional = parseInt(document.getElementById('raise-slider').value);
+  const me = gameState?.players?.find(p => p.id === gameState.myId);
+  // Server expects the total "raise to" amount
+  const totalAmount = (me?.roundBet || 0) + additional;
+  const action = additional >= raiseMax ? 'allin' : 'raise';
+  socket.emit('action', { action, amount: totalAmount });
+  hideRaisePanel();
+});
+
+document.getElementById('btn-exit-game').addEventListener('click', () => {
+  if (!confirm('确定退出当前牌局？离开后筹码将不予保留。')) return;
+  socket.emit('leave_room', () => {
+    clearSession();
+    gameState = null;
+    clearInterval(timerInterval);
+    showScreen('lobby');
+  });
+});
+
+function hideRaisePanel() {
+  document.getElementById('raise-panel').style.display = 'none';
+  document.getElementById('action-row').style.display = 'flex';
+}
+
+// ── Host config ────────────────────────────────────────────
+document.getElementById('input-buyin-max').addEventListener('change', function() {
+  const v = parseInt(this.value);
+  if (!isNaN(v) && v >= 100) {
+    socket.emit('configure_room', { maxBuyIn: v });
+  }
+});
+
+// ── Buy-in modal ────────────────────────────────────────────
+function _buyinSliderUpdate(slider) {
+  const val = parseInt(slider.value);
+  const min = parseInt(slider.min) || 100;
+  const max = parseInt(slider.max) || 1000;
+  const pct = ((val - min) / (max - min) * 100).toFixed(1);
+  slider.style.background =
+    `linear-gradient(to right,#FFD700 ${pct}%,rgba(255,255,255,.15) ${pct}%)`;
+  document.getElementById('buyin-modal-amount').textContent = val.toLocaleString();
+}
+
+function openBuyInModal() {
+  const state = gameState;
+  if (!state) return;
+  const max = state.maxBuyIn || 1000;
+  const slider = document.getElementById('buyin-modal-slider');
+  slider.max = max;
+  slider.step = max <= 1000 ? 100 : Math.ceil(max / 20 / 100) * 100;
+  slider.value = Math.min(1000, max);
+  document.getElementById('buyin-modal-max-label').textContent = max.toLocaleString();
+  document.getElementById('buyin-modal-loan').textContent =
+    state.myTotalLoaned > 0 ? `累计已借入 ${state.myTotalLoaned} 筹码` : '';
+  _buyinSliderUpdate(slider);
+  document.getElementById('buyin-modal').style.display = 'flex';
+}
+
+document.getElementById('buyin-modal-slider').addEventListener('input', function() {
+  _buyinSliderUpdate(this);
+});
+
+document.getElementById('btn-buyin-modal-cancel').addEventListener('click', () => {
+  document.getElementById('buyin-modal').style.display = 'none';
+});
+
+document.getElementById('btn-buyin-modal-confirm').addEventListener('click', () => {
+  const amount = parseInt(document.getElementById('buyin-modal-slider').value);
+  document.getElementById('buyin-modal').style.display = 'none';
+  socket.emit('buy_in', { amount }, (res) => { if (res?.error) showToast(res.error); });
+});
+
+// ── Buy in (all three entry points open the modal) ──────────
+document.getElementById('btn-buyin-banner').addEventListener('click', () => {
+  openBuyInModal();
+});
+
+document.getElementById('btn-buyin').addEventListener('click', () => {
+  openBuyInModal();
+});
+
+// ── Final leaderboard exit ─────────────────────────────────
+document.getElementById('btn-final-exit').addEventListener('click', () => {
+  socket.emit('leave_room', () => {
+    clearSession();
+    gameState = null;
+    clearInterval(timerInterval);
+    document.getElementById('final-overlay').style.display = 'none';
+    showScreen('lobby');
+  });
+});
+
+// ── End game (host) ────────────────────────────────────────
+document.getElementById('btn-end-game').addEventListener('click', () => {
+  if (!confirm('确定结束游戏？本局打完后将进入最终结算。')) return;
+  socket.emit('request_end_game', (res) => {
+    if (res?.error) showToast(res.error);
+  });
+});
+
+// ── Hand history panel ─────────────────────────────────────
+function histCardHtml(card, small = false) {
+  if (!card) return '';
+  const col = (card.suit === 'h' || card.suit === 'd') ? '#e57373' : '#e8e8e8';
+  const cls = small ? 'hist-ccard' : 'hist-hcard';
+  return `<span class="${cls}" style="color:${col}">${rankLabel(card.rank)}${SUIT_SYM[card.suit]}</span>`;
+}
+
+function renderHistoryPanel() {
+  const list = document.getElementById('history-list');
+  const history = gameState?.handHistory || [];
+  if (!history.length) {
+    list.innerHTML = '<div class="history-empty">暂无历史牌局</div>';
+    return;
+  }
+  list.innerHTML = history.map(entry => {
+    return entry.winners.map((w, wi) => {
+      const profitClass = w.netProfit > 0 ? 'pos' : w.netProfit < 0 ? 'neg' : 'zero';
+      const profitStr   = w.netProfit > 0 ? `+${w.netProfit}` : String(w.netProfit);
+      const holeHtml    = w.holeCards.length
+        ? w.holeCards.map(c => histCardHtml(c, false)).join('')
+        : `<span class="hist-fold-label">${entry.wonByFold ? '未亮牌' : '—'}</span>`;
+      const commHtml    = entry.communityCards.length
+        ? entry.communityCards.map(c => histCardHtml(c, true)).join('')
+        : `<span class="hist-fold-label">无公牌</span>`;
+      const handHtml    = w.handName
+        ? `<span class="hist-handname">${esc(w.handName)}</span>`
+        : entry.wonByFold
+          ? `<span class="hist-fold-label">弃牌获胜</span>`
+          : '';
+      return `<div class="hist-row${entry.wonByFold ? ' fold-win' : ''}">
+        <span class="hist-num">${wi === 0 ? '#' + entry.handNum : ''}</span>
+        <span class="hist-name">${esc(w.name)}</span>
+        <div class="hist-hole">${holeHtml}</div>
+        ${handHtml}
+        <span class="hist-sep">·</span>
+        <div class="hist-comm">${commHtml}</div>
+        <span class="hist-profit ${profitClass}">${profitStr}</span>
+      </div>`;
+    }).join('');
+  }).join('');
+}
+
+document.getElementById('btn-history').addEventListener('click', () => {
+  renderHistoryPanel();
+  const n = gameState?.handHistory?.length || 0;
+  document.getElementById('history-header-title').textContent = n ? `历史牌局（${n} 局）` : '历史牌局';
+  document.getElementById('history-panel').classList.add('visible');
+});
+document.getElementById('btn-close-history').addEventListener('click', () => {
+  document.getElementById('history-panel').classList.remove('visible');
+});
+
+// ── Init ───────────────────────────────────────────────────
+const savedName = localStorage.getItem('poker_name');
+if (savedName) document.getElementById('name-input').value = savedName;
+document.getElementById('name-input').addEventListener('input', function() {
+  localStorage.setItem('poker_name', this.value);
+});
+
+initSocket();
+initSounds();
+
+// ── Service Worker registration ─────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .catch(err => console.warn('SW registration failed:', err));
+}
+</script>
+</body>
+</html>
