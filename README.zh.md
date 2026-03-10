@@ -19,11 +19,10 @@
 ```yaml
 services:
   texas-holdem:
-    build: .
+    image: dasabihub/texas-holdem-web:latest
     ports:
       - "3448:3448"
     environment:
-      - PORT=3448
       - GAME_LANG=zh   # zh | en（默认）
     restart: unless-stopped
 ```

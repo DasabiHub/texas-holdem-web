@@ -19,11 +19,10 @@ Real-time multiplayer Texas Hold'em poker in the browser. No account needed — 
 ```yaml
 services:
   texas-holdem:
-    build: .
+    image: dasabihub/texas-holdem-web:latest
     ports:
       - "3448:3448"
     environment:
-      - PORT=3448
       - GAME_LANG=en   # en (default) | zh
     restart: unless-stopped
 ```
