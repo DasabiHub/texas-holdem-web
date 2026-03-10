@@ -4,7 +4,7 @@
 
 ![UI 示例](./UI_example.png)
 
-浏览器中的实时多人德州扑克。无需注册，分享 6 位房间码即可开始游戏。
+浏览器中的实时多人德州扑克。无需注册，分享 6 位数字房间码即可开始游戏。
 
 ## 功能
 
@@ -21,7 +21,10 @@ services:
   texas-holdem:
     image: dasabihub/texas-holdem-web:latest
     ports:
-      - "3448:3448"
+      - "3003:3003"   # HTTP
+      - "3448:3448"   # HTTPS
+    volumes:
+      - /证书目录:/cred:ro   # 可选，详见下方 HTTPS 说明
     environment:
       - GAME_LANG=zh   # zh | en（默认）
     restart: unless-stopped
@@ -29,16 +32,37 @@ services:
 
 ```bash
 docker compose up -d
-# 访问 http://localhost:3448
+# HTTP:  http://localhost:3003
+# HTTPS: https://localhost:3448  （需要挂载证书）
 ```
+
+## HTTPS 配置
+
+当容器内 `/cred/server.key` 和 `/cred/server.crt` 文件存在时，HTTPS 会自动启用。将宿主机的证书目录以只读方式挂载即可：
+
+```yaml
+volumes:
+  - /etc/ssl/my-certs:/cred:ro
+```
+
+该目录需包含以下两个文件：
+
+```
+server.key   # 私钥
+server.crt   # 证书（如需请包含完整证书链）
+```
+
+若未找到证书文件，服务器仅在 3003 端口提供 HTTP 服务，3448 端口不启用。
 
 ## 本地运行
 
 ```bash
 npm install
-GAME_LANG=zh node server.js  # 中文
-node server.js               # 英文
+node server.js               # 英文，仅 HTTP
+GAME_LANG=zh node server.js  # 中文，仅 HTTP
 ```
+
+本地启用 HTTPS 时，将 `server.key` 和 `server.crt` 放置于宿主机的 `/cred/` 目录后正常启动即可。
 
 ## PWA 安装
 

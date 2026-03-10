@@ -2,6 +2,7 @@
 
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
@@ -9,8 +10,29 @@ const PokerGame = require('./game/PokerGame');
 
 const fs = require('fs');
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+
+const HTTP_PORT  = parseInt(process.env.HTTP_PORT  || '3003');
+const HTTPS_PORT = parseInt(process.env.HTTPS_PORT || '3448');
+
+// Always start HTTP server
+const httpServer = http.createServer(app);
+
+// HTTPS: start if certs are present at /cred/server.key and /cred/server.crt
+const CERT_KEY = '/cred/server.key';
+const CERT_CRT = '/cred/server.crt';
+const hasCerts = fs.existsSync(CERT_KEY) && fs.existsSync(CERT_CRT);
+let httpsServer = null;
+if (hasCerts) {
+  httpsServer = https.createServer(
+    { key: fs.readFileSync(CERT_KEY), cert: fs.readFileSync(CERT_CRT) },
+    app
+  );
+}
+
+// Attach Socket.IO to both servers so WebSocket works on both ports
+const io = new Server();
+io.attach(httpServer);
+if (httpsServer) io.attach(httpsServer);
 
 const LANG = process.env.GAME_LANG || 'en';
 const MSG = {
@@ -37,7 +59,7 @@ const GRACE_MS = 3 * 60 * 1000; // 3-minute grace period for reconnection
 
 function genCode() {
   let code;
-  do { code = crypto.randomBytes(3).toString('hex').toUpperCase(); } while (rooms.has(code));
+  do { code = String(Math.floor(Math.random() * 1000000)).padStart(6, '0'); } while (rooms.has(code));
   return code;
 }
 
@@ -298,5 +320,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Texas Hold'em running at http://localhost:${PORT}`));
+httpServer.listen(HTTP_PORT, () => console.log(`Texas Hold'em HTTP  → http://localhost:${HTTP_PORT}`));
+if (httpsServer) {
+  httpsServer.listen(HTTPS_PORT, () => console.log(`Texas Hold'em HTTPS → https://localhost:${HTTPS_PORT}`));
+}

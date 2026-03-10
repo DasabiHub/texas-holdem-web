@@ -589,7 +589,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 
 /* ── Waiting room seat table ──────────────────────────── */
 #waiting-seat-table{
-  position:relative;width:100%;aspect-ratio:16/9;margin:8px 0;
+  position:relative;width:100%;aspect-ratio:160/108;margin:8px 0;
   background:radial-gradient(ellipse at 50% 45%,#3a9060 0%,#1b5e37 70%,#145230 100%);
   border-radius:50% / 28%;border:6px solid #4a2c08;
   box-shadow:inset 0 0 40px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.5)
@@ -688,8 +688,8 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   </div>
   <div class="section-label" data-i18n="enter_code">Enter room code</div>
   <div class="join-code-row">
-    <input type="text" id="code-input" placeholder="e.g. A3F8C2" data-i18n="code_placeholder" maxlength="6"
-      autocomplete="off" autocapitalize="characters" style="text-transform:uppercase">
+    <input type="text" id="code-input" placeholder="e.g. 382910" data-i18n="code_placeholder" maxlength="6"
+      autocomplete="off" inputmode="numeric" pattern="[0-9]*">
     <button class="btn-small" id="btn-join-code" data-i18n="btn_join_code">Join</button>
   </div>
   <div class="divider" data-i18n="or_select">or select a room</div>
@@ -870,7 +870,7 @@ const TRANSLATIONS = {
     name_label:'Your nickname', name_placeholder:'Enter nickname...',
     btn_create:'Create Room', btn_join:'Join Game',
     join_title:'Join Game', enter_code:'Enter room code',
-    code_placeholder:'e.g. A3F8C2', btn_join_code:'Join',
+    code_placeholder:'e.g. 382910', btn_join_code:'Join',
     or_select:'or select a room', available_rooms:'Available Rooms',
     btn_refresh:'↻ Refresh', no_rooms:'No rooms available',
     waiting_title:'Waiting Room',
@@ -942,7 +942,7 @@ const TRANSLATIONS = {
     name_label:'你的昵称', name_placeholder:'输入昵称...',
     btn_create:'创建房间', btn_join:'加入游戏',
     join_title:'加入游戏', enter_code:'输入房间代码',
-    code_placeholder:'如: A3F8C2', btn_join_code:'加入',
+    code_placeholder:'如: 382910', btn_join_code:'加入',
     or_select:'或选择房间', available_rooms:'可用房间',
     btn_refresh:'↻ 刷新', no_rooms:'暂无可加入的房间',
     waiting_title:'等待室',
@@ -1029,13 +1029,25 @@ const SUIT_COLOR = { s:'#111', h:'#d32f2f', d:'#d32f2f', c:'#111' };
 const SEAT_POS   = [
   [50, 87],  // 0: 我（底部中）
   [19, 73],  // 1: 左下
-  [12, 47],  // 2: 左中
-  [16, 20],  // 3: 左上
-  [34, 10],  // 4: 上左
-  [66, 10],  // 5: 上右
-  [84, 20],  // 6: 右上
-  [88, 47],  // 7: 右中
+  [12, 53],  // 2: 左中
+  [16, 31],  // 3: 左上
+  [34, 18],  // 4: 上左
+  [66, 18],  // 5: 上右
+  [84, 31],  // 6: 右上
+  [88, 53],  // 7: 右中
   [81, 73],  // 8: 右下
+];
+// 等待室专用座位位置（桌子比游戏桌宽20%，相应调整各座位横向位置）
+const WAIT_SEAT_POS = [
+  [50, 87],  // 0: 底部中（1号座）
+  [26, 77],  // 1: 左下（2号座） → 向下移
+  [12, 53],  // 2: 左中（3号座）
+  [22, 29],  // 3: 左上（4号座）
+  [40, 16],  // 4: 上左（5号座）
+  [60, 16],  // 5: 上右（6号座）
+  [78, 29],  // 6: 右上（7号座）
+  [88, 53],  // 7: 右中（8号座）
+  [74, 77],  // 8: 右下（9号座） → 向下移
 ];
 const PHASE_LABEL = { waiting:'phase_waiting', preflop:'phase_preflop', flop:'phase_flop', turn:'phase_turn', river:'phase_river', showdown:'phase_showdown' };
 const TURN_SEC = 30;
@@ -1047,6 +1059,7 @@ let myId = null, myName = '', roomCode = null;
 let gameState = null;
 let timerInterval = null;
 let raiseMin = 0, raiseMax = 0;
+let myLastSeatIndex = null; // remembers last seat for stable table orientation after stand-up
 let prevBets = {};        // playerId -> roundBet
 let prevLastActions = {}; // playerId -> lastAction, for action animation detection
 let prevCommunityCount = 0; // for community card deal animation
@@ -1064,7 +1077,7 @@ function loadSession() {
 }
 function clearSession() {
   localStorage.removeItem(SESSION_KEY);
-  myId = null; roomCode = null;
+  myId = null; roomCode = null; myLastSeatIndex = null;
 }
 
 // ── UI helpers ─────────────────────────────────────────────
@@ -1135,7 +1148,7 @@ function animateChipsToWinners(state) {
   const fromX = potRect.left + potRect.width / 2 - wrapRect.left;
   const fromY = potRect.top  + potRect.height / 2 - wrapRect.top;
 
-  const mySeat = state.mySeatIndex ?? 0;
+  const mySeat = state.mySeatIndex ?? myLastSeatIndex ?? 0;
 
   // Accumulate total winnings per player across all side pots
   const winnerMap = {};
@@ -1196,7 +1209,7 @@ function triggerDealAnimation(state) {
   const fromX = wrapRect.width  * 0.5;
   const fromY = wrapRect.height * 0.5;
 
-  const mySeat = state.mySeatIndex ?? 0;
+  const mySeat = state.mySeatIndex ?? myLastSeatIndex ?? 0;
   const myPlayerIdx = state.players.findIndex(p => p.id === state.myId);
 
   let delay = 0;
@@ -1522,7 +1535,7 @@ document.getElementById('btn-refresh-rooms').addEventListener('click', function(
 });
 
 document.getElementById('btn-join-code').addEventListener('click', () => {
-  const code = document.getElementById('code-input').value.trim().toUpperCase();
+  const code = document.getElementById('code-input').value.trim();
   if (!code) { showToast(t('toast_enter_code')); return; }
   joinRoom(code);
 });
@@ -1571,7 +1584,7 @@ function renderWaiting(info) {
   let tableHtml = '<div id="waiting-seat-table">';
   for (let i = 0; i < 9; i++) {
     const seat = seats[i] || { seatIndex: i, playerId: null, name: null };
-    const [lp, tp] = SEAT_POS[i];
+    const [lp, tp] = WAIT_SEAT_POS[i];
     const isOccupied = seat.playerId !== null;
     const isMine = seat.playerId === myId;
     let cls = 'waiting-seat';
@@ -1630,6 +1643,7 @@ function renderGame(state) {
   // 只要切入 preflop（首局、每局开始、重连）就触发发牌动画
   const isNewHand = state.phase === 'preflop' && prevGamePhase !== 'preflop';
   prevGamePhase = state.phase;
+  if (state.mySeatIndex !== null) myLastSeatIndex = state.mySeatIndex;
 
   document.getElementById('game-waiting-overlay').style.display = isWaiting ? 'flex' : 'none';
   if (isWaiting) return;
@@ -1757,7 +1771,7 @@ function renderGame(state) {
 }
 
 function renderSeats(state) {
-  const mySeat = state.mySeatIndex ?? 0; // visual slot 0 = my seat position
+  const mySeat = state.mySeatIndex ?? myLastSeatIndex ?? 0; // visual slot 0 = my seat position
   const container = document.getElementById('seats');
   container.innerHTML = '';
 

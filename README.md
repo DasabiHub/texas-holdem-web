@@ -4,7 +4,7 @@
 
 ![UI Example](./UI_example.png)
 
-Real-time multiplayer Texas Hold'em poker in the browser. No account needed — share a 6-character room code and start playing.
+Real-time multiplayer Texas Hold'em poker in the browser. No account needed — share a 6-digit room code and start playing.
 
 ## Features
 
@@ -21,7 +21,10 @@ services:
   texas-holdem:
     image: dasabihub/texas-holdem-web:latest
     ports:
-      - "3448:3448"
+      - "3003:3003"   # HTTP
+      - "3448:3448"   # HTTPS
+    volumes:
+      - /path/to/certs:/cred:ro   # optional, see HTTPS section below
     environment:
       - GAME_LANG=en   # en (default) | zh
     restart: unless-stopped
@@ -29,16 +32,37 @@ services:
 
 ```bash
 docker compose up -d
-# Open http://localhost:3448
+# HTTP:  http://localhost:3003
+# HTTPS: https://localhost:3448  (only if certs are mounted)
 ```
+
+## HTTPS
+
+HTTPS is enabled automatically when certificate files are found at `/cred/server.key` and `/cred/server.crt` inside the container. Mount your certificate directory as a read-only volume:
+
+```yaml
+volumes:
+  - /etc/ssl/my-certs:/cred:ro
+```
+
+The directory must contain exactly these two files:
+
+```
+server.key   # private key
+server.crt   # certificate (include full chain if needed)
+```
+
+If no certs are found, the server runs HTTP only on port 3003 and HTTPS port 3448 is unused.
 
 ## Run from Source
 
 ```bash
 npm install
-node server.js               # English
-GAME_LANG=zh node server.js  # Chinese
+node server.js               # English, HTTP only
+GAME_LANG=zh node server.js  # Chinese, HTTP only
 ```
+
+For HTTPS from source, place `server.key` and `server.crt` in `/cred/` on your machine, then run normally.
 
 ## PWA Install
 

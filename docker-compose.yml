@@ -2,8 +2,11 @@ services:
   texas-holdem:
     build: .
     ports:
-      - "3448:3448"
+      - "3003:3003"   # HTTP
+      - "3448:3448"   # HTTPS
+    volumes:
+      - /cred:/cred:ro   # SSL证书目录，需包含 server.key 和 server.crt
     environment:
       - NODE_ENV=production
-      - PORT=3448
+      - GAME_LANG=zh   # zh | en（默认）
     restart: unless-stopped

@@ -50,6 +50,8 @@ class PokerGame {
     this.handHistory = []; // [{handNum, communityCards, wonByFold, winners:[{name,holeCards,handName,netProfit}]}]
     this.handNum = 0;
     this.seats = new Array(9).fill(null); // seats[i] = playerId or null
+    this._handStarting = false; // guard against concurrent _startHand() calls
+    this._nextHandTimer = null; // single scheduled timer for next hand
   }
 
   // ── Player management ──────────────────────────────────────────────────────
@@ -125,7 +127,7 @@ class PokerGame {
             + this.pendingPlayers.filter(q => q.seatIndex !== null).length;
           if (seated >= 2) {
             this.waitingForBuyIn = false;
-            setTimeout(() => this._startHand(), 2000);
+            this._scheduleNextHand(2000);
           }
         }
       }
@@ -133,7 +135,9 @@ class PokerGame {
       // Broke spectator choosing a seat — still needs to buy in first; just record seat
       // They stay in brokeSpectators; once they buy in, they'll move to pendingPlayers
     }
-    // fromActive (waiting phase) or fromPending: already in correct array, just update seatIndex
+    // fromActive: player was in this.players with pendingStandUp; cancel the stand-up
+    if (fromActive) p.pendingStandUp = false;
+    // fromPending: already in correct array, just update seatIndex
 
     this._broadcastState();
     return { ok: true };
@@ -285,7 +289,27 @@ class PokerGame {
     return { ok: true };
   }
 
+  // Advance dealerSeatIndex to the next occupied seat after current dealer
+  _advanceDealerSeat() {
+    const curDealerSeat = this.players[this.dealerIdx]?.seatIndex ?? this.dealerSeatIndex;
+    const occupiedSeats = this.players.map(p => p.seatIndex).filter(s => s !== null).sort((a, b) => a - b);
+    this.dealerSeatIndex = occupiedSeats.find(s => s > curDealerSeat) ?? occupiedSeats[0] ?? 0;
+  }
+
+  // Centralized helper — prevents duplicate timers for next hand
+  _scheduleNextHand(delayMs) {
+    clearTimeout(this._nextHandTimer);
+    this._nextHandTimer = setTimeout(() => {
+      this._nextHandTimer = null;
+      this._startHand();
+    }, delayMs);
+  }
+
   _startHand() {
+    // Guard: ignore re-entrant calls (e.g. race between showdown timer and waitingForBuyIn timer)
+    if (this._handStarting) return;
+    this._handStarting = true;
+
     this.deck = new Deck();
     this.communityCards = [];
     this.pot = 0;
@@ -294,6 +318,8 @@ class PokerGame {
     this.waitingForBuyIn = false;
     clearTimeout(this.showCardsTimer);
     this.showCardsTimer = null;
+    clearTimeout(this._nextHandTimer);
+    this._nextHandTimer = null;
 
     // Handle pending stand-up players: clear their seat and move to standingPlayers
     const standingUp = this.players.filter(p => p.pendingStandUp);
@@ -341,12 +367,14 @@ class PokerGame {
 
     // Check if host requested game end
     if (this.pendingEnd) {
+      this._handStarting = false;
       this._finalLeaderboard();
       return;
     }
 
     // Not enough active players — wait for buy-ins (don't kick to lobby)
     if (this.players.length < 2) {
+      this._handStarting = false;
       this.waitingForBuyIn = true;
       this.lastResult = this.lastResult; // preserve last result for display
       this._broadcastState();
@@ -401,6 +429,7 @@ class PokerGame {
     const utg = (bbIdx + 1) % n;
     this._buildActionQueue(utg);
     // BB gets option at end – they're already at the back of the queue
+    this._handStarting = false; // hand setup complete; allow future _startHand calls
     this._startTimer();
     this._broadcastState();
   }
@@ -682,18 +711,12 @@ class PokerGame {
 
     this.revealAll = true;
     this.lastResult = results;
-    this.nextHandAt = Date.now() + 8000;
+    this.nextHandAt = Date.now() + 10000;
     this._broadcastState();
 
-    // Advance dealer seat and start next hand after 8 seconds
-    setTimeout(() => {
-      const curDealerSeat = this.players[this.dealerIdx]?.seatIndex ?? this.dealerSeatIndex;
-      // Find next occupied seat after current dealer seat
-      const occupiedSeats = this.players.map(p => p.seatIndex).filter(s => s !== null).sort((a, b) => a - b);
-      const nextSeatIdx = occupiedSeats.find(s => s > curDealerSeat) ?? occupiedSeats[0] ?? 0;
-      this.dealerSeatIndex = nextSeatIdx;
-      this._startHand();
-    }, 8000);
+    // Advance dealer seat and start next hand after 10 seconds
+    this._advanceDealerSeat();
+    this._scheduleNextHand(10000);
   }
 
   _calculatePots() {
@@ -746,20 +769,15 @@ class PokerGame {
       });
     }
     this.pot = 0;
-    this.nextHandAt = Date.now() + 3500;
+    this.nextHandAt = Date.now() + 6000;
     this._broadcastState();
 
+    this._advanceDealerSeat();
     this.showCardsTimer = setTimeout(() => {
       this.showCardsWinnerId = null;
       this._broadcastState(); // remove the "Show Cards" button
-      setTimeout(() => {
-        const curDealerSeat = this.players[this.dealerIdx]?.seatIndex ?? this.dealerSeatIndex;
-        const occupiedSeats = this.players.map(p => p.seatIndex).filter(s => s !== null).sort((a, b) => a - b);
-        const nextSeatIdx = occupiedSeats.find(s => s > curDealerSeat) ?? occupiedSeats[0] ?? 0;
-        this.dealerSeatIndex = nextSeatIdx;
-        this._startHand();
-      }, 500);
-    }, 3000);
+      this._scheduleNextHand(500);
+    }, 5500);
   }
 
   configure(hostId, config) {
@@ -800,7 +818,7 @@ class PokerGame {
           + this.pendingPlayers.filter(p => p.seatIndex !== null).length;
         if (seated >= 2) {
           this.waitingForBuyIn = false;
-          setTimeout(() => this._startHand(), 2000);
+          this._scheduleNextHand(2000);
         }
       }
       return { ok: true };
@@ -858,17 +876,12 @@ class PokerGame {
       }
     }
 
-    this.nextHandAt = Date.now() + 3000;
+    this.nextHandAt = Date.now() + 6000;
     this._broadcastState();
 
-    // Stay for 3 more seconds so everyone can see the cards
-    this.showCardsTimer = setTimeout(() => {
-      const curDealerSeat = this.players[this.dealerIdx]?.seatIndex ?? this.dealerSeatIndex;
-      const occupiedSeats = this.players.map(p => p.seatIndex).filter(s => s !== null).sort((a, b) => a - b);
-      const nextSeatIdx = occupiedSeats.find(s => s > curDealerSeat) ?? occupiedSeats[0] ?? 0;
-      this.dealerSeatIndex = nextSeatIdx;
-      this._startHand();
-    }, 3000);
+    // Stay for 6 more seconds so everyone can see the cards
+    this._advanceDealerSeat();
+    this._scheduleNextHand(6000);
 
     return { ok: true };
   }
