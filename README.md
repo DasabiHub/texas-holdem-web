@@ -2,6 +2,8 @@
 
 # Texas Hold'em ♠
 
+![UI Example](./UI_example.png)
+
 Real-time multiplayer Texas Hold'em poker in the browser. No account needed — share a 6-character room code and start playing.
 
 ## Features
