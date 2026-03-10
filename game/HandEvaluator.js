@@ -1,6 +1,6 @@
 'use strict';
 
-const HAND_NAMES = ['高牌', '一对', '两对', '三条', '顺子', '同花', '葫芦', '四条', '同花顺', '皇家同花顺'];
+const HAND_NAMES = ['high_card','one_pair','two_pair','three_of_a_kind','straight','flush','full_house','four_of_a_kind','straight_flush','royal_flush'];
 
 function evaluateFive(cards) {
   const ranks = cards.map(c => c.rank).sort((a, b) => b - a);

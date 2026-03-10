@@ -19,13 +19,15 @@ class PokerGame {
     this.roomCode = roomCode;
     this.io = io;
     this.hostId = null;
-    this.players = []; // [{ id, name, chips, socketId, totalBet, roundBet, folded, allIn, holeCards, lastAction }]
+    this.players = []; // [{ id, name, chips, socketId, totalBet, roundBet, folded, allIn, holeCards, lastAction, seatIndex }]
     this.pendingPlayers = []; // joined mid-game, waiting to enter at next hand
+    this.standingPlayers = []; // players with a seat reserved but currently standing (not in active hand)
     this.phase = PHASE.WAITING;
     this.deck = null;
     this.communityCards = [];
     this.pot = 0;
     this.dealerIdx = 0;
+    this.dealerSeatIndex = 0; // persists across hands even when player array changes
     this.currentIdx = -1;
     this.currentBet = 0;
     this.minRaise = 20;
@@ -47,12 +49,14 @@ class PokerGame {
     this.nextHandAt = null; // timestamp when next hand starts (for client countdown)
     this.handHistory = []; // [{handNum, communityCards, wonByFold, winners:[{name,holeCards,handName,netProfit}]}]
     this.handNum = 0;
+    this.seats = new Array(9).fill(null); // seats[i] = playerId or null
   }
 
   // ── Player management ──────────────────────────────────────────────────────
 
   addPlayer(id, name, socketId) {
-    if (this.players.length + this.pendingPlayers.length >= 8) return { error: '房间已满' };
+    const total = this.players.length + this.pendingPlayers.length + this.standingPlayers.length;
+    if (total >= 9) return { error: '房间已满' };
     if (this.phase !== PHASE.WAITING) return { error: '游戏已开始' };
     if (this.players.find(p => p.name === name)) return { error: '昵称已被使用' };
     const player = {
@@ -62,15 +66,18 @@ class PokerGame {
       folded: false, allIn: false,
       holeCards: [], lastAction: null,
       totalLoaned: 0,
+      seatIndex: null,
     };
     this.players.push(player);
     return { player };
   }
 
-  // Join mid-game as spectator — will enter at next hand start
+  // Join mid-game as spectator — will enter at next hand start after choosing a seat
   addPendingPlayer(id, name, socketId) {
-    if (this.players.length + this.pendingPlayers.length >= 8) return { error: '房间已满' };
-    const nameUsed = this.players.find(p => p.name === name) || this.pendingPlayers.find(p => p.name === name);
+    const total = this.players.length + this.pendingPlayers.length + this.standingPlayers.length;
+    if (total >= 9) return { error: '房间已满' };
+    const nameUsed = this.players.find(p => p.name === name) || this.pendingPlayers.find(p => p.name === name)
+      || this.standingPlayers.find(p => p.name === name);
     if (nameUsed) return { error: '昵称已被使用' };
     const player = {
       id, name, socketId,
@@ -79,20 +86,131 @@ class PokerGame {
       folded: false, allIn: false,
       holeCards: [], lastAction: null,
       totalLoaned: 0,
+      seatIndex: null,
     };
-    this.pendingPlayers.push(player);
+    // Start as standing player — they must choose a seat via sitDown()
+    this.standingPlayers.push(player);
     return { player };
+  }
+
+  // Player chooses a seat
+  sitDown(playerId, seatIndex) {
+    if (seatIndex < 0 || seatIndex > 8) return { error: '无效座位' };
+    if (this.seats[seatIndex] !== null) return { error: '座位已被占用' };
+
+    // Find player in any pool
+    const fromStanding = this.standingPlayers.find(p => p.id === playerId);
+    const fromBroke = this.brokeSpectators.find(p => p.id === playerId);
+    const fromActive = this._player(playerId); // in this.players (waiting phase)
+    const fromPending = this.pendingPlayers.find(p => p.id === playerId);
+
+    const p = fromStanding || fromBroke || fromActive || fromPending;
+    if (!p) return { error: '玩家不存在' };
+    if (p.seatIndex !== null) return { error: '你已经在座位上了' };
+
+    // Clear old seat if any (shouldn't happen but safety check)
+    this.seats[seatIndex] = playerId;
+    p.seatIndex = seatIndex;
+
+    if (fromStanding) {
+      // Standing player with chips → move to pendingPlayers (enter next hand)
+      this.standingPlayers.splice(this.standingPlayers.indexOf(fromStanding), 1);
+      if (this.phase === PHASE.WAITING) {
+        this.players.push(p);
+      } else {
+        this.pendingPlayers.push(p);
+        // If game was waiting for buy-ins, check if we now have enough
+        if (this.waitingForBuyIn) {
+          const seated = this.players.filter(q => q.seatIndex !== null).length
+            + this.pendingPlayers.filter(q => q.seatIndex !== null).length;
+          if (seated >= 2) {
+            this.waitingForBuyIn = false;
+            setTimeout(() => this._startHand(), 2000);
+          }
+        }
+      }
+    } else if (fromBroke) {
+      // Broke spectator choosing a seat — still needs to buy in first; just record seat
+      // They stay in brokeSpectators; once they buy in, they'll move to pendingPlayers
+    }
+    // fromActive (waiting phase) or fromPending: already in correct array, just update seatIndex
+
+    this._broadcastState();
+    return { ok: true };
+  }
+
+  // Player stands up (only when folded during a hand, or during waiting phase)
+  standUp(playerId) {
+    const p = this._player(playerId);
+    if (!p) {
+      // Check if in pendingPlayers or standingPlayers
+      const pending = this.pendingPlayers.find(q => q.id === playerId);
+      if (pending && pending.seatIndex !== null) {
+        this.seats[pending.seatIndex] = null;
+        pending.seatIndex = null;
+        // Move from pendingPlayers to standingPlayers
+        this.pendingPlayers.splice(this.pendingPlayers.indexOf(pending), 1);
+        this.standingPlayers.push(pending);
+        this._broadcastState();
+        return { ok: true };
+      }
+      return { error: '玩家不存在' };
+    }
+    if (this.phase !== PHASE.WAITING && !p.folded) return { error: '只能在弃牌后站起' };
+    if (this.phase === PHASE.SHOWDOWN) return { error: '摊牌阶段不能站起' };
+
+    if (this.phase === PHASE.WAITING) {
+      // In waiting phase, stand up immediately
+      if (p.seatIndex !== null) {
+        this.seats[p.seatIndex] = null;
+        p.seatIndex = null;
+      }
+      // Move from players to standingPlayers
+      const idx = this.players.indexOf(p);
+      this.players.splice(idx, 1);
+      this.standingPlayers.push(p);
+      this._broadcastState();
+      return { ok: true };
+    }
+
+    // During game: free seat immediately so others can sit, keep in players for pot tracking
+    if (p.seatIndex !== null) {
+      this.seats[p.seatIndex] = null;
+      p.seatIndex = null;
+    }
+    p.pendingStandUp = true;
+    this._broadcastState();
+    return { ok: true };
   }
 
   // Called when player explicitly leaves — marks for removal at next hand (or immediately if waiting)
   removePlayer(id) {
     // Handle broke spectators
     const bi = this.brokeSpectators.findIndex(p => p.id === id);
-    if (bi >= 0) { this.brokeSpectators.splice(bi, 1); this._broadcastState(); return; }
+    if (bi >= 0) {
+      const p = this.brokeSpectators[bi];
+      if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
+      this.brokeSpectators.splice(bi, 1);
+      this._broadcastState(); return;
+    }
+
+    // Handle standing players
+    const si = this.standingPlayers.findIndex(p => p.id === id);
+    if (si >= 0) {
+      const p = this.standingPlayers[si];
+      if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
+      this.standingPlayers.splice(si, 1);
+      this._broadcastState(); return;
+    }
 
     // Handle pending (spectator) players first
     const pi = this.pendingPlayers.findIndex(p => p.id === id);
-    if (pi >= 0) { this.pendingPlayers.splice(pi, 1); this._broadcastState(); return; }
+    if (pi >= 0) {
+      const p = this.pendingPlayers[pi];
+      if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
+      this.pendingPlayers.splice(pi, 1);
+      this._broadcastState(); return;
+    }
 
     const p = this._player(id);
     if (!p) return;
@@ -106,6 +224,7 @@ class PokerGame {
       else this._broadcastState();
     } else {
       const idx = this.players.indexOf(p);
+      if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
       this.players.splice(idx, 1);
     }
   }
@@ -114,11 +233,27 @@ class PokerGame {
   markDisconnected(id) {
     // Broke spectators: just remove them silently
     const bi = this.brokeSpectators.findIndex(p => p.id === id);
-    if (bi >= 0) { this.brokeSpectators.splice(bi, 1); return; }
+    if (bi >= 0) {
+      const p = this.brokeSpectators[bi];
+      if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
+      this.brokeSpectators.splice(bi, 1); return;
+    }
+
+    // Standing players: just remove them silently
+    const si = this.standingPlayers.findIndex(p => p.id === id);
+    if (si >= 0) {
+      const p = this.standingPlayers[si];
+      if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
+      this.standingPlayers.splice(si, 1); return;
+    }
 
     // Pending players: just remove them (they haven't joined a hand yet)
     const pi = this.pendingPlayers.findIndex(p => p.id === id);
-    if (pi >= 0) { this.pendingPlayers.splice(pi, 1); return; }
+    if (pi >= 0) {
+      const p = this.pendingPlayers[pi];
+      if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
+      this.pendingPlayers.splice(pi, 1); return;
+    }
 
     const p = this._player(id);
     if (!p || p.permanentlyLeft) return;
@@ -133,7 +268,10 @@ class PokerGame {
   }
 
   updateSocket(id, socketId) {
-    const p = this._player(id);
+    const p = this._player(id)
+      || this.pendingPlayers.find(p => p.id === id)
+      || this.standingPlayers.find(p => p.id === id)
+      || this.brokeSpectators.find(p => p.id === id);
     if (p) p.socketId = socketId;
   }
 
@@ -141,7 +279,8 @@ class PokerGame {
 
   startGame(requesterId) {
     if (requesterId !== this.hostId) return { error: '只有房主才能开始游戏' };
-    if (this.players.length < 2) return { error: '至少需要2名玩家' };
+    const seated = this.players.filter(p => p.seatIndex !== null);
+    if (seated.length < 2) return { error: '至少需要2名玩家入座' };
     this._startHand();
     return { ok: true };
   }
@@ -156,17 +295,49 @@ class PokerGame {
     clearTimeout(this.showCardsTimer);
     this.showCardsTimer = null;
 
-    // Absorb pending players (bought in) into the active roster
-    for (const p of this.pendingPlayers) this.players.push(p);
-    this.pendingPlayers = [];
+    // Handle pending stand-up players: clear their seat and move to standingPlayers
+    const standingUp = this.players.filter(p => p.pendingStandUp);
+    for (const p of standingUp) {
+      if (p.seatIndex !== null) {
+        this.seats[p.seatIndex] = null;
+        p.seatIndex = null;
+      }
+      p.pendingStandUp = false;
+      this.standingPlayers.push(p);
+    }
+    this.players = this.players.filter(p => !standingUp.includes(p));
 
-    // Remove permanently-left players
+    // Absorb pending players (who have a seat) into the active roster
+    const readyPending = this.pendingPlayers.filter(p => p.seatIndex !== null);
+    for (const p of readyPending) this.players.push(p);
+    this.pendingPlayers = this.pendingPlayers.filter(p => p.seatIndex === null);
+
+    // Remove permanently-left players and clear their seats
+    const permanentlyLeft = this.players.filter(p => p.permanentlyLeft);
+    for (const p of permanentlyLeft) {
+      if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; p.seatIndex = null; }
+    }
+
     // Move 0-chip players to brokeSpectators instead of removing them
     const nowBroke = this.players.filter(p => !p.permanentlyLeft && p.chips === 0);
     for (const p of nowBroke) {
-      if (!this.brokeSpectators.find(b => b.id === p.id)) this.brokeSpectators.push(p);
+      if (!this.brokeSpectators.find(b => b.id === p.id)) {
+        // Clear their seat since they went broke
+        if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; p.seatIndex = null; }
+        this.brokeSpectators.push(p);
+      }
     }
     this.players = this.players.filter(p => !p.permanentlyLeft && p.chips > 0);
+
+    // Players without seats go to standingPlayers (shouldn't normally happen but safety)
+    const unseated = this.players.filter(p => p.seatIndex === null);
+    for (const p of unseated) this.standingPlayers.push(p);
+
+    // Only players with seats participate
+    this.players = this.players.filter(p => p.seatIndex !== null);
+
+    // Sort players by seatIndex (counterclockwise order)
+    this.players.sort((a, b) => a.seatIndex - b.seatIndex);
 
     // Check if host requested game end
     if (this.pendingEnd) {
@@ -197,8 +368,17 @@ class PokerGame {
     }
 
     const n = this.players.length;
-    // Clamp dealer index after player removal
-    this.dealerIdx = this.dealerIdx % n;
+
+    // Find dealer index based on dealerSeatIndex (find closest seat >= dealerSeatIndex)
+    let dealerIdx = 0;
+    let found = false;
+    for (let i = 0; i < n; i++) {
+      if (this.players[i].seatIndex >= this.dealerSeatIndex) {
+        dealerIdx = i; found = true; break;
+      }
+    }
+    if (!found) dealerIdx = 0; // wrap around: use first player
+    this.dealerIdx = dealerIdx;
 
     // Determine SB and BB (heads-up: dealer = SB; 3+: SB left of dealer, BB two left)
     const sbIdx = n === 2 ? this.dealerIdx : (this.dealerIdx + 1) % n;
@@ -271,6 +451,7 @@ class PokerGame {
       }
 
       case 'raise': {
+        const isBet = this.currentBet === 0;
         const raiseTo = Math.max(amount, this.currentBet + this.minRaise);
         const toAdd = Math.min(raiseTo - p.roundBet, p.chips);
         p.chips -= toAdd;
@@ -280,7 +461,7 @@ class PokerGame {
         this.minRaise = Math.max(this.bigBlind, p.roundBet - this.currentBet);
         this.currentBet = p.roundBet;
         if (p.chips === 0) { p.allIn = true; p.lastAction = '全押'; }
-        else p.lastAction = '加注';
+        else p.lastAction = isBet ? '下注' : '加注';
         // Rebuild queue: all active non-all-in except raiser, starting after raiser
         const raiserIdx = this.players.indexOf(p);
         const nextIdx = (raiserIdx + 1) % this.players.length;
@@ -504,9 +685,13 @@ class PokerGame {
     this.nextHandAt = Date.now() + 8000;
     this._broadcastState();
 
-    // Advance dealer and start next hand after 8 seconds
+    // Advance dealer seat and start next hand after 8 seconds
     setTimeout(() => {
-      this.dealerIdx = (this.dealerIdx + 1) % this.players.length;
+      const curDealerSeat = this.players[this.dealerIdx]?.seatIndex ?? this.dealerSeatIndex;
+      // Find next occupied seat after current dealer seat
+      const occupiedSeats = this.players.map(p => p.seatIndex).filter(s => s !== null).sort((a, b) => a - b);
+      const nextSeatIdx = occupiedSeats.find(s => s > curDealerSeat) ?? occupiedSeats[0] ?? 0;
+      this.dealerSeatIndex = nextSeatIdx;
       this._startHand();
     }, 8000);
   }
@@ -568,7 +753,10 @@ class PokerGame {
       this.showCardsWinnerId = null;
       this._broadcastState(); // remove the "Show Cards" button
       setTimeout(() => {
-        this.dealerIdx = (this.dealerIdx + 1) % this.players.length;
+        const curDealerSeat = this.players[this.dealerIdx]?.seatIndex ?? this.dealerSeatIndex;
+        const occupiedSeats = this.players.map(p => p.seatIndex).filter(s => s !== null).sort((a, b) => a - b);
+        const nextSeatIdx = occupiedSeats.find(s => s > curDealerSeat) ?? occupiedSeats[0] ?? 0;
+        this.dealerSeatIndex = nextSeatIdx;
         this._startHand();
       }, 500);
     }, 3000);
@@ -597,12 +785,20 @@ class PokerGame {
       p.chips += buyAmount;
       p.totalLoaned += buyAmount;
       this.brokeSpectators.splice(brokeIdx, 1);
-      this.pendingPlayers.push(p);
+      // If they have a seat (reserved before going broke), move to pendingPlayers
+      // Otherwise they go to standingPlayers to choose a seat
+      if (p.seatIndex !== null && this.seats[p.seatIndex] === playerId) {
+        this.pendingPlayers.push(p);
+      } else {
+        p.seatIndex = null;
+        this.standingPlayers.push(p);
+      }
       this._broadcastState();
       // If game was waiting for players, start once we have enough
       if (this.waitingForBuyIn) {
-        const total = this.players.length + this.pendingPlayers.length;
-        if (total >= 2) {
+        const seated = this.players.filter(p => p.seatIndex !== null).length
+          + this.pendingPlayers.filter(p => p.seatIndex !== null).length;
+        if (seated >= 2) {
           this.waitingForBuyIn = false;
           setTimeout(() => this._startHand(), 2000);
         }
@@ -634,7 +830,7 @@ class PokerGame {
     this.phase = 'ended';
     this.timerDeadline = null;
     clearTimeout(this.timer);
-    const allPlayers = [...this.players, ...this.brokeSpectators, ...this.pendingPlayers];
+    const allPlayers = [...this.players, ...this.brokeSpectators, ...this.pendingPlayers, ...this.standingPlayers];
     this.finalRankings = allPlayers
       .map(p => ({
         id: p.id,
@@ -667,7 +863,10 @@ class PokerGame {
 
     // Stay for 3 more seconds so everyone can see the cards
     this.showCardsTimer = setTimeout(() => {
-      this.dealerIdx = (this.dealerIdx + 1) % this.players.length;
+      const curDealerSeat = this.players[this.dealerIdx]?.seatIndex ?? this.dealerSeatIndex;
+      const occupiedSeats = this.players.map(p => p.seatIndex).filter(s => s !== null).sort((a, b) => a - b);
+      const nextSeatIdx = occupiedSeats.find(s => s > curDealerSeat) ?? occupiedSeats[0] ?? 0;
+      this.dealerSeatIndex = nextSeatIdx;
       this._startHand();
     }, 3000);
 
@@ -698,8 +897,8 @@ class PokerGame {
       const sock = this.io.sockets.sockets.get(p.socketId);
       if (sock) sock.emit('game_state', this._stateFor(p.id));
     }
-    // Send spectator view to pending players and broke spectators
-    for (const p of [...this.pendingPlayers, ...this.brokeSpectators]) {
+    // Send spectator view to pending players, standing players, and broke spectators
+    for (const p of [...this.pendingPlayers, ...this.standingPlayers, ...this.brokeSpectators]) {
       const sock = this.io.sockets.sockets.get(p.socketId);
       if (sock) sock.emit('game_state', this._stateFor(p.id));
     }
@@ -710,37 +909,65 @@ class PokerGame {
     const isShowdown = this.phase === PHASE.SHOWDOWN;
     const myPlayer = this._player(playerId);
     const isBrokeSpectator = !myPlayer && this.brokeSpectators.some(p => p.id === playerId);
+    const myStandingPlayer = !myPlayer && this.standingPlayers.find(p => p.id === playerId);
+    const myPendingPlayer = !myPlayer && !myStandingPlayer && this.pendingPlayers.find(p => p.id === playerId);
 
     const n = this.players.length;
     const sbIdx = n === 2 ? this.dealerIdx : (this.dealerIdx + 1) % n;
     const bbIdx = (this.dealerIdx + 1 + (n === 2 ? 0 : 1)) % n;
 
-    const players = this.players.map((p, idx) => ({
-      id: p.id,
-      name: p.name,
-      chips: p.chips,
-      totalLoaned: p.totalLoaned || 0,
-      roundBet: p.roundBet,
-      totalBet: p.totalBet,
-      folded: p.folded,
-      allIn: p.allIn,
-      lastAction: p.lastAction,
-      isDealer: idx === this.dealerIdx && n > 2,
-      isSB: idx === sbIdx,
-      isBB: idx === bbIdx,
-      isCurrent: idx === this.currentIdx,
-      disconnected: !!p.disconnected,
-      // Reveal cards if: own cards, real showdown (went to river), or voluntarily shown
-      ...(() => {
-        const reveal = p.id === playerId || this.revealAll || !!p.showedCards;
-        const holeCards = reveal ? p.holeCards : p.holeCards.map(() => null);
-        if (reveal && isShowdown && !p.folded && p.holeCards.length > 0) {
-          const h = bestHand([...p.holeCards, ...this.communityCards]);
-          return { holeCards, handName: h.name, bestCards: h.cards };
-        }
-        return { holeCards, handName: null, bestCards: null };
-      })(),
-    }));
+    const players = [
+      ...this.players.map((p, idx) => ({
+        id: p.id,
+        name: p.name,
+        chips: p.chips,
+        totalLoaned: p.totalLoaned || 0,
+        roundBet: p.roundBet,
+        totalBet: p.totalBet,
+        folded: p.folded,
+        allIn: p.allIn,
+        lastAction: p.lastAction,
+        isDealer: idx === this.dealerIdx && n > 2,
+        isSB: idx === sbIdx,
+        isBB: idx === bbIdx,
+        isCurrent: idx === this.currentIdx,
+        disconnected: !!p.disconnected,
+        seatIndex: p.seatIndex,
+        // Reveal cards if: own cards, real showdown (went to river), or voluntarily shown
+        ...(() => {
+          const reveal = p.id === playerId || this.revealAll || !!p.showedCards;
+          const holeCards = reveal ? p.holeCards : p.holeCards.map(() => null);
+          if (reveal && isShowdown && !p.folded && p.holeCards.length > 0) {
+            const h = bestHand([...p.holeCards, ...this.communityCards]);
+            return { holeCards, handName: h.name, bestCards: h.cards };
+          }
+          return { holeCards, handName: null, bestCards: null };
+        })(),
+      })),
+      // Pending players (joined mid-hand) appear as folded so they're visible on the table
+      ...this.pendingPlayers
+        .filter(p => p.seatIndex !== null)
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          chips: p.chips,
+          totalLoaned: p.totalLoaned || 0,
+          roundBet: 0,
+          totalBet: 0,
+          folded: true,
+          allIn: false,
+          lastAction: null,
+          isDealer: false,
+          isSB: false,
+          isBB: false,
+          isCurrent: false,
+          disconnected: false,
+          seatIndex: p.seatIndex,
+          holeCards: [],
+          handName: null,
+          bestCards: null,
+        })),
+    ];
 
     // Available actions for the current player
     let actions = null;
@@ -755,6 +982,7 @@ class PokerGame {
         canCall,
         callAmount: callAmt,
         canRaise,
+        isBet: this.currentBet === 0,
         minRaise: this.currentBet + this.minRaise,
         maxRaise: myPlayer.chips + myPlayer.roundBet,
       };
@@ -762,6 +990,28 @@ class PokerGame {
 
     const myBrokeSpectator = this.brokeSpectators.find(p => p.id === playerId);
     const myTotalLoaned = myPlayer?.totalLoaned || myBrokeSpectator?.totalLoaned || 0;
+
+    // Build seat map: each seat slot info
+    const allPlayersByPid = {};
+    for (const p of [...this.players, ...this.pendingPlayers, ...this.standingPlayers, ...this.brokeSpectators]) {
+      allPlayersByPid[p.id] = p;
+    }
+    const seatsInfo = this.seats.map((pid, i) => {
+      if (!pid) return { seatIndex: i, playerId: null, name: null, chips: null, isActive: false };
+      const sp = allPlayersByPid[pid];
+      return {
+        seatIndex: i,
+        playerId: pid,
+        name: sp?.name ?? null,
+        chips: sp?.chips ?? null,
+        isActive: this.players.some(p => p.id === pid),
+      };
+    });
+
+    const mySeatIndex = myPlayer?.seatIndex ?? myStandingPlayer?.seatIndex ?? myPendingPlayer?.seatIndex ?? myBrokeSpectator?.seatIndex ?? null;
+    const canStandUp = (!!myPlayer && myPlayer.folded && this.phase !== PHASE.SHOWDOWN && this.phase !== PHASE.WAITING)
+      || (!!myPlayer && this.phase === PHASE.WAITING)
+      || (!!myPendingPlayer && myPendingPlayer.seatIndex !== null);
 
     return {
       phase: this.phase,
@@ -791,6 +1041,10 @@ class PokerGame {
       isHost: myPlayer?.id === this.hostId || false,
       nextHandAt: this.nextHandAt,
       handHistory: this.handHistory,
+      seats: seatsInfo,
+      mySeatIndex,
+      canStandUp,
+      isStanding: !!myStandingPlayer || (!!myPlayer && !!myPlayer.pendingStandUp),
     };
   }
 
@@ -799,11 +1053,18 @@ class PokerGame {
       roomCode: this.roomCode,
       hostId: this.hostId,
       phase: this.phase,
-      playerCount: this.players.length,
-      players: this.players.map(p => ({ id: p.id, name: p.name, chips: p.chips })),
+      playerCount: this.players.length + this.pendingPlayers.length + this.standingPlayers.length,
+      players: this.players.map(p => ({ id: p.id, name: p.name, chips: p.chips, seatIndex: p.seatIndex })),
       pendingCount: this.pendingPlayers.length,
-      pendingPlayers: this.pendingPlayers.map(p => ({ id: p.id, name: p.name })),
+      pendingPlayers: this.pendingPlayers.map(p => ({ id: p.id, name: p.name, seatIndex: p.seatIndex })),
+      standingPlayers: this.standingPlayers.map(p => ({ id: p.id, name: p.name, chips: p.chips })),
       maxBuyIn: this.maxBuyIn,
+      seats: this.seats.map((pid, i) => {
+        if (!pid) return { seatIndex: i, playerId: null, name: null };
+        const allP = [...this.players, ...this.pendingPlayers, ...this.standingPlayers, ...this.brokeSpectators];
+        const sp = allP.find(p => p.id === pid);
+        return { seatIndex: i, playerId: pid, name: sp?.name ?? null };
+      }),
     };
   }
 

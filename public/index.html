@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -52,17 +52,18 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 .empty-hint{color:#555;font-size:14px;text-align:center;padding:24px 0}
 
 /* ── Waiting Room ────────────────────────────────────────── */
-#waiting{padding:24px;gap:16px;background:#0d2b1e}
-.code-box{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:20px;text-align:center}
-.code-label{font-size:12px;color:#aaa;margin-bottom:6px}
-.code-value{font-size:36px;font-weight:800;letter-spacing:8px;color:#FFD700;cursor:pointer}
-.code-hint{font-size:12px;color:#555;margin-top:6px}
+#waiting{padding:24px;gap:16px;background:#0d2b1e;overflow-y:auto}
+#waiting-seats{flex-shrink:1;min-height:0}
+.code-box{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:10px 16px;text-align:center;display:flex;align-items:center;justify-content:center;gap:12px}
+.code-label{font-size:11px;color:#aaa}
+.code-value{font-size:26px;font-weight:800;letter-spacing:6px;color:#FFD700;cursor:pointer}
+.code-hint{font-size:10px;color:#555}
 #waiting-players{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
 .player-item{background:rgba(255,255,255,.06);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px}
 .player-avatar-sm{width:36px;height:36px;border-radius:50%;background:#2c3e50;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
 .player-name-sm{font-size:15px;font-weight:600}
 .host-tag{font-size:11px;background:#FFD700;color:#000;padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:700}
-.waiting-footer{display:flex;flex-direction:column;gap:10px}
+.waiting-footer{display:flex;flex-direction:column;gap:10px;position:sticky;bottom:0;background:#0d2b1e;padding-bottom:8px}
 .waiting-msg{text-align:center;color:#aaa;font-size:14px;padding:8px}
 
 /* ── Game Screen ─────────────────────────────────────────── */
@@ -121,17 +122,18 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 .card.big .card-suit{font-size:22px}
 .seat{
   position:absolute;transform:translate(-50%,-50%);
-  display:flex;flex-direction:column;align-items:center;gap:3px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
   z-index:10;transition:opacity .3s
 }
 .seat.folded{opacity:.35}
-.seat-avatar-wrap{position:relative;width:46px;height:46px}
+.seat-top-row{display:flex;align-items:center;gap:4px}
+.seat-avatar-wrap{position:relative;width:42px;height:42px;flex-shrink:0}
 .seat-avatar{
-  width:46px;height:46px;border-radius:50%;
+  width:42px;height:42px;border-radius:50%;
   background:linear-gradient(135deg,#2c3e50,#1a252f);
   border:2.5px solid #444;
   display:flex;align-items:center;justify-content:center;
-  font-weight:700;font-size:17px;color:#fff;position:relative;z-index:1
+  font-weight:700;font-size:16px;color:#fff;position:relative;z-index:1
 }
 .seat.current .seat-avatar{border-color:#4CAF50;box-shadow:0 0 10px rgba(76,175,80,.5)}
 .seat.me .seat-avatar{border-color:#FFD700;box-shadow:0 0 10px rgba(255,215,0,.4)}
@@ -153,20 +155,29 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 }
 .action-badge.fold{background:#c62828}
 .action-badge.raise,.action-badge.allin{background:#e65100}
+.action-badge.bet{background:#b8860b;color:#fff}
 .action-badge.check{background:#558b2f}
+.seat-info-row{
+  display:flex;align-items:center;gap:4px;
+  background:rgba(0,0,0,.65);padding:1px 5px;border-radius:4px;
+  max-width:110px
+}
 .seat-name{
   font-size:10px;font-weight:600;
-  background:rgba(0,0,0,.65);padding:1px 6px;border-radius:4px;
-  max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+  max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
 }
-.seat-chips{font-size:11px;color:#fff;font-weight:500}
-.seat-bet{font-size:11px;color:#FFD700;font-weight:800}
-.seat-role-badges{display:flex;gap:3px;margin-top:1px}
-.badge{font-size:9px;padding:1px 4px;border-radius:3px;font-weight:800}
+.seat-chips{font-size:10px;color:#FFD700;font-weight:700;white-space:nowrap}
+.seat-bet{font-size:9px;color:#fff;font-weight:700;background:rgba(255,180,0,.2);
+  padding:0 3px;border-radius:3px;white-space:nowrap}
+.seat-role-pin{
+  position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
+  display:flex;gap:1px;z-index:4
+}
+.badge{font-size:8px;padding:0 3px;border-radius:3px;font-weight:800;line-height:1.5}
 .badge.D{background:#8B6914;color:#fff}
 .badge.SB{background:#1565C0;color:#fff}
 .badge.BB{background:#c62828;color:#fff}
-.seat-mini-cards{display:flex;gap:4px;margin-top:3px}
+.seat-mini-cards{display:flex;gap:3px;align-items:center}
 .mini-card{
   width:19px;height:28px;background:#fff;border-radius:3px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -208,7 +219,8 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   background:rgba(0,0,0,.35);backdrop-filter:blur(4px);
   padding:10px 12px 14px;
   display:flex;flex-direction:column;align-items:center;gap:8px;
-  border-top:1px solid rgba(255,255,255,.08)
+  border-top:1px solid rgba(255,255,255,.08);
+  position:relative
 }
 #my-area{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%}
 #my-info-row{display:flex;justify-content:space-between;width:100%;padding:0 4px}
@@ -228,9 +240,12 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 #btn-check-call{width:80px;height:80px;background:linear-gradient(135deg,#1976D2,#1565C0);font-size:12px;text-align:center}
 #btn-raise{width:68px;height:68px;background:linear-gradient(135deg,#2e7d32,#1b5e37);font-size:14px}
 #raise-panel{
-  width:100%;background:rgba(0,0,0,.4);border-radius:14px;
-  padding:12px 14px;display:flex;flex-direction:column;gap:10px
+  width:100%;height:80px;box-sizing:border-box;
+  background:rgba(0,0,0,.4);border-radius:14px;
+  padding:8px 12px;display:flex;flex-direction:row;gap:12px;align-items:center;
+  overflow:hidden
 }
+#raise-left{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
 #raise-amount-display{text-align:center;font-size:28px;font-weight:800;color:#FFD700}
 #raise-slider{
   width:100%;height:4px;-webkit-appearance:none;appearance:none;
@@ -241,16 +256,17 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   border-radius:50%;background:#4CAF50;cursor:pointer;
   box-shadow:0 2px 6px rgba(0,0,0,.4)
 }
-.raise-presets{display:flex;gap:6px;justify-content:center}
+#raise-right{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.raise-presets{display:flex;gap:5px;justify-content:center}
 .preset-btn{
   padding:6px 10px;background:rgba(255,255,255,.1);
   border:1px solid rgba(255,255,255,.15);border-radius:8px;
   color:#fff;font-size:11px;cursor:pointer;font-weight:600
 }
 .preset-btn:active{background:rgba(255,255,255,.2)}
-.raise-confirm-row{display:flex;gap:10px;justify-content:center}
-#btn-raise-cancel{padding:10px 24px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;font-size:14px;cursor:pointer}
-#btn-raise-confirm{padding:10px 28px;background:#2e7d32;border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+.raise-confirm-row{display:flex;gap:8px;justify-content:center}
+#btn-raise-cancel{padding:5px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:9px;color:#fff;font-size:12px;cursor:pointer;flex:1}
+#btn-raise-confirm{padding:5px 10px;background:#2e7d32;border:none;border-radius:9px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;flex:1}
 #result-overlay{
   position:absolute;inset:0;background:rgba(0,0,0,.72);
   display:none;align-items:center;justify-content:center;z-index:50;
@@ -570,6 +586,83 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   from{opacity:0;transform:translateY(-28px) scale(.75)}
   to  {opacity:1;transform:translateY(0) scale(1)}
 }
+
+/* ── Waiting room seat table ──────────────────────────── */
+#waiting-seat-table{
+  position:relative;width:100%;aspect-ratio:16/9;margin:8px 0;
+  background:radial-gradient(ellipse at 50% 45%,#3a9060 0%,#1b5e37 70%,#145230 100%);
+  border-radius:50% / 28%;border:6px solid #4a2c08;
+  box-shadow:inset 0 0 40px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.5)
+}
+.waiting-seat{
+  position:absolute;transform:translate(-50%,-50%);
+  display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer
+}
+.waiting-seat-circle{
+  width:42px;height:42px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;border:2px dashed rgba(255,255,255,.3);
+  background:rgba(0,0,0,.45);color:rgba(255,255,255,.4);
+  transition:border-color .2s,background .2s,color .2s
+}
+.waiting-seat.occupied .waiting-seat-circle{
+  border:2.5px solid #4CAF50;background:#1b3a2a;color:#fff
+}
+.waiting-seat.mine .waiting-seat-circle{
+  border:2.5px solid #FFD700;background:#2a2a00;color:#FFD700
+}
+.waiting-seat.selectable:hover .waiting-seat-circle{
+  border-color:#FFD700;background:rgba(255,215,0,.12);color:#FFD700
+}
+.waiting-seat-label{
+  font-size:9px;color:rgba(255,255,255,.4);white-space:nowrap;
+  max-width:56px;text-align:center;overflow:hidden;text-overflow:ellipsis
+}
+.waiting-seat.occupied .waiting-seat-label,.waiting-seat.mine .waiting-seat-label{
+  color:rgba(255,255,255,.8)
+}
+.waiting-seat.mine .stand-up-btn{
+  font-size:9px;padding:1px 6px;background:#c62828;border:none;border-radius:4px;
+  color:#fff;cursor:pointer;margin-top:1px
+}
+
+/* ── Empty seat during game ───────────────────────────── */
+.seat-empty{
+  position:absolute;transform:translate(-50%,-50%);
+  display:flex;flex-direction:column;align-items:center;gap:3px;z-index:10
+}
+.seat-empty-circle{
+  width:42px;height:42px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:rgba(255,255,255,.3);
+  border:2px dashed rgba(255,255,255,.2);background:rgba(0,0,0,.3)
+}
+.seat-empty.selectable{cursor:pointer}
+.seat-empty.selectable:hover .seat-empty-circle{
+  border-color:#FFD700;color:#FFD700;background:rgba(255,215,0,.1)
+}
+.seat-empty-label{font-size:9px;color:rgba(255,255,255,.25)}
+.seat-empty.selectable .seat-empty-label{color:rgba(255,215,0,.5)}
+
+/* ── Standing banner ──────────────────────────────────── */
+#standing-banner{
+  display:none;
+  position:absolute;bottom:0;left:0;right:0;z-index:35;
+  background:linear-gradient(135deg,#1565C0,#0d47a1);
+  padding:8px 16px;flex-direction:column;align-items:center;gap:2px;
+  border-top:1px solid rgba(255,255,255,.15)
+}
+#standing-banner.visible{display:flex}
+#standing-banner span:first-child{font-size:13px;font-weight:700}
+#standing-banner-hint{font-size:11px;color:rgba(255,255,255,.7)}
+
+/* ── Stand up button ──────────────────────────────────── */
+#btn-stand-up{
+  position:absolute;bottom:8px;right:8px;z-index:36;
+  padding:6px 14px;background:rgba(180,0,0,.7);border:1px solid rgba(255,80,80,.3);
+  border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;display:none
+}
+#btn-stand-up:active{background:rgba(180,0,0,1)}
 </style>
 </head>
 <body>
@@ -577,67 +670,70 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 <!-- ── Lobby ───────────────────────────────────────────── -->
 <div id="lobby" class="screen">
   <div class="logo">♠</div>
-  <div class="title">德州扑克</div>
-  <div class="subtitle">Texas Hold'em</div>
+  <div class="title" data-i18n="title">Texas Hold'em</div>
+  <div class="subtitle" data-i18n="subtitle">德州扑克</div>
   <div class="input-group">
-    <label>你的昵称</label>
-    <input type="text" id="name-input" placeholder="输入昵称..." maxlength="12" autocomplete="off">
+    <label data-i18n="name_label">Your nickname</label>
+    <input type="text" id="name-input" placeholder="Enter nickname..." data-i18n="name_placeholder" maxlength="12" autocomplete="off">
   </div>
-  <button class="btn-primary" id="btn-create">创建房间</button>
-  <button class="btn-secondary" id="btn-go-join">加入游戏</button>
+  <button class="btn-primary" id="btn-create" data-i18n="btn_create">Create Room</button>
+  <button class="btn-secondary" id="btn-go-join" data-i18n="btn_join">Join Game</button>
 </div>
 
 <!-- ── Join ────────────────────────────────────────────── -->
 <div id="join" class="screen">
   <div class="screen-header">
     <button class="back-btn" id="btn-back-lobby">←</button>
-    <span class="screen-title">加入游戏</span>
+    <span class="screen-title" data-i18n="join_title">Join Game</span>
   </div>
-  <div class="section-label">输入房间代码</div>
+  <div class="section-label" data-i18n="enter_code">Enter room code</div>
   <div class="join-code-row">
-    <input type="text" id="code-input" placeholder="如: A3F8C2" maxlength="6"
+    <input type="text" id="code-input" placeholder="e.g. A3F8C2" data-i18n="code_placeholder" maxlength="6"
       autocomplete="off" autocapitalize="characters" style="text-transform:uppercase">
-    <button class="btn-small" id="btn-join-code">加入</button>
+    <button class="btn-small" id="btn-join-code" data-i18n="btn_join_code">Join</button>
   </div>
-  <div class="divider">或选择房间</div>
+  <div class="divider" data-i18n="or_select">or select a room</div>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-    <div class="section-label" style="margin-top:0">可用房间</div>
-    <button id="btn-refresh-rooms" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:rgba(255,255,255,.7);font-size:12px;padding:4px 10px;cursor:pointer">↻ 刷新</button>
+    <div class="section-label" style="margin-top:0" data-i18n="available_rooms">Available Rooms</div>
+    <button id="btn-refresh-rooms" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:rgba(255,255,255,.7);font-size:12px;padding:4px 10px;cursor:pointer" data-i18n="btn_refresh">↻ Refresh</button>
   </div>
-  <div id="rooms-list"><div class="empty-hint">暂无可加入的房间</div></div>
+  <div id="rooms-list"><div class="empty-hint" data-i18n="no_rooms">No rooms available</div></div>
 </div>
 
 <!-- ── Waiting Room ─────────────────────────────────────── -->
 <div id="waiting" class="screen">
   <div class="screen-header">
     <button class="back-btn" id="btn-leave-room">←</button>
-    <span class="screen-title">等待室</span>
+    <span class="screen-title" data-i18n="waiting_title">Waiting Room</span>
   </div>
   <div class="code-box">
-    <div class="code-label">房间代码 — 分享给朋友</div>
+    <div>
+      <div class="code-label" data-i18n="room_code_label">Room Code — Share with friends</div>
+      <div class="code-hint" data-i18n="room_code_hint">Click to copy</div>
+    </div>
     <div class="code-value" id="display-code">------</div>
-    <div class="code-hint">点击代码复制</div>
   </div>
-  <div class="section-label">玩家 (<span id="player-count">0</span>/8)</div>
-  <div id="waiting-players"></div>
+  <div class="section-label"><span data-i18n="seats_label">Seats</span> (<span id="player-count">0</span>/9)</div>
+  <div id="waiting-seats"></div>
+  <div id="waiting-players" style="display:none"></div>
   <div id="host-config" style="display:none">
-    <div class="section-label">游戏设置</div>
+    <div class="section-label" data-i18n="game_settings">Game Settings</div>
     <div class="config-row">
-      <label>单次买入上限 (筹码)</label>
+      <label data-i18n="buyin_max_label">Max buy-in (chips)</label>
       <input type="number" id="input-buyin-max" value="1000" min="100" step="100">
     </div>
   </div>
   <div class="waiting-footer">
-    <button class="btn-primary" id="btn-start" style="display:none">开始游戏</button>
-    <div class="waiting-msg" id="waiting-msg">等待房主开始游戏…</div>
+    <button class="btn-primary" id="btn-start" style="display:none" data-i18n="btn_start">Start Game</button>
+    <div class="waiting-msg" id="waiting-msg" data-i18n="waiting_for_host">Waiting for host to start...</div>
   </div>
 </div>
 
 <!-- ── Game ────────────────────────────────────────────── -->
 <div id="game" class="screen">
-  <button id="btn-exit-game" title="退出牌局">✕ 退出</button>
-  <button id="btn-history">📋 历史</button>
-  <button id="btn-end-game">⏹ 结束游戏</button>
+  <button id="btn-exit-game" title="Exit Game" data-i18n="btn_exit">✕ Exit</button>
+  <button id="btn-history" data-i18n="btn_history">📋 History</button>
+  <button id="btn-end-game" data-i18n="btn_end_game">⏹ End Game</button>
   <div id="table-wrap">
     <div id="table-felt"></div>
     <div id="community-area">
@@ -648,7 +744,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
     </div>
     <div id="seats"></div>
   </div>
-  <div id="pending-end-notice">房主已申请结束游戏，本局结束后进行结算</div>
+  <div id="pending-end-notice" data-i18n="pending_end">Host has requested to end the game — settling after this hand</div>
   <div id="bottom-panel">
     <div id="my-area">
       <div id="my-info-row">
@@ -658,39 +754,43 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
       <div id="my-cards-row"></div>
     </div>
     <div id="action-row">
-      <button class="action-btn" id="btn-fold" disabled>弃牌</button>
+      <button class="action-btn" id="btn-fold" disabled data-i18n="btn_fold">Fold</button>
       <button class="action-btn" id="btn-check-call" disabled>-</button>
-      <button class="action-btn" id="btn-raise" disabled>加注</button>
+      <button class="action-btn" id="btn-raise" disabled data-i18n="btn_raise">Raise</button>
     </div>
     <div id="raise-panel" style="display:none">
-      <div id="raise-amount-display">0</div>
-      <input type="range" id="raise-slider" min="0" max="100" value="0">
-      <div class="raise-presets">
-        <button class="preset-btn" data-frac="0.33">1/3池</button>
-        <button class="preset-btn" data-frac="0.5">半池</button>
-        <button class="preset-btn" data-frac="1">全池</button>
-        <button class="preset-btn" data-allin="1">All In</button>
+      <div id="raise-left">
+        <div id="raise-amount-display">0</div>
+        <input type="range" id="raise-slider" min="0" max="100" value="0">
       </div>
-      <div class="raise-confirm-row">
-        <button id="btn-raise-cancel">取消</button>
-        <button id="btn-raise-confirm">确认加注</button>
+      <div id="raise-right">
+        <div class="raise-presets">
+          <button class="preset-btn" data-frac="0.33" data-i18n="preset_third">1/3 Pot</button>
+          <button class="preset-btn" data-frac="0.5" data-i18n="preset_half">½ Pot</button>
+          <button class="preset-btn" data-frac="1" data-i18n="preset_pot">Pot</button>
+          <button class="preset-btn" data-allin="1">All In</button>
+        </div>
+        <div class="raise-confirm-row">
+          <button id="btn-raise-cancel" data-i18n="btn_raise_cancel">Cancel</button>
+          <button id="btn-raise-confirm">Confirm Raise</button>
+        </div>
       </div>
     </div>
     <div id="buyin-panel">
-      <div class="buyin-title">筹码耗尽</div>
+      <div class="buyin-title" data-i18n="buyin_title">Out of chips</div>
       <div class="buyin-loan" id="buyin-loan-info"></div>
-      <button id="btn-buyin">买入筹码</button>
+      <button id="btn-buyin" data-i18n="btn_buyin">Buy In</button>
     </div>
   </div>
   <div id="game-waiting-overlay">
     <div class="spinner"></div>
-    <div style="color:#aaa;font-size:14px">等待开始…</div>
+    <div style="color:#aaa;font-size:14px" data-i18n="game_waiting">Waiting to start...</div>
   </div>
 
   <!-- Hand history panel -->
   <div id="history-panel">
     <div id="history-header">
-      <span id="history-header-title">历史牌局</span>
+      <span id="history-header-title" data-i18n="history_header">Hand History</span>
       <button id="btn-close-history">✕</button>
     </div>
     <div id="history-list"></div>
@@ -699,7 +799,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   <!-- Buy-in amount modal (shared by all buy-in buttons) -->
   <div id="buyin-modal">
     <div class="buyin-modal-box">
-      <div class="buyin-modal-title">买入筹码</div>
+      <div class="buyin-modal-title" data-i18n="buyin_modal_title">Buy In</div>
       <div class="buyin-modal-loan" id="buyin-modal-loan"></div>
       <div class="buyin-modal-amount" id="buyin-modal-amount">1000</div>
       <div class="buyin-slider-wrap">
@@ -710,18 +810,25 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
         <span id="buyin-modal-max-label">1000</span>
       </div>
       <div class="buyin-modal-btns">
-        <button id="btn-buyin-modal-cancel">取消</button>
-        <button id="btn-buyin-modal-confirm">确认买入</button>
+        <button id="btn-buyin-modal-cancel" data-i18n="btn_buyin_cancel">Cancel</button>
+        <button id="btn-buyin-modal-confirm" data-i18n="btn_buyin_confirm">Confirm Buy In</button>
       </div>
     </div>
   </div>
 
   <!-- Spectator banner -->
   <div id="spectator-banner">
-    <span>👀 观战中</span>
-    <span id="spectator-hint">下一局开始后自动上桌</span>
+    <span data-i18n="spectator_label">👀 Spectating</span>
+    <span id="spectator-hint">Will join automatically next hand</span>
     <button id="btn-buyin-banner" style="display:none"></button>
   </div>
+  <!-- Standing player banner -->
+  <div id="standing-banner">
+    <span data-i18n="standing_label">🏃 Standing</span>
+    <span id="standing-banner-hint" data-i18n="standing_hint">Click an empty seat to join next hand</span>
+  </div>
+  <!-- Stand up button -->
+  <button id="btn-stand-up" data-i18n="btn_stand_up">Stand Up</button>
   <!-- Fold-win minimal banner (replaces old result overlay for won-by-fold) -->
   <div id="fold-win-banner">
     <div id="fold-win-title" style="font-size:16px;font-weight:800;color:#FFD700"></div>
@@ -736,9 +843,9 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   </div>
   <div id="final-overlay">
     <div class="final-card">
-      <div class="final-title">🏆 游戏结束 · 最终结算</div>
+      <div class="final-title" data-i18n="final_title">🏆 Game Over · Final Results</div>
       <div id="final-body"></div>
-      <button id="btn-final-exit" style="margin-top:16px;width:100%;padding:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;color:#fff;font-size:15px;font-weight:600;cursor:pointer">退出游戏</button>
+      <button id="btn-final-exit" style="margin-top:16px;width:100%;padding:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;color:#fff;font-size:15px;font-weight:600;cursor:pointer" data-i18n="btn_final_exit">Exit Game</button>
     </div>
   </div>
 </div>
@@ -747,7 +854,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 <div id="reconnect-overlay">
   <div class="logo">♠</div>
   <div class="spinner"></div>
-  <div class="reconnect-msg" id="reconnect-msg">连接中…</div>
+  <div class="reconnect-msg" id="reconnect-msg" data-i18n="reconnecting">Connecting...</div>
   <div class="reconnect-sub" id="reconnect-sub"></div>
 </div>
 
@@ -755,14 +862,182 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
+// ── i18n ───────────────────────────────────────────────────
+const TRANSLATIONS = {
+  en: {
+    page_title:'Texas Hold\'em',
+    title:'Texas Hold\'em', subtitle:'德州扑克',
+    name_label:'Your nickname', name_placeholder:'Enter nickname...',
+    btn_create:'Create Room', btn_join:'Join Game',
+    join_title:'Join Game', enter_code:'Enter room code',
+    code_placeholder:'e.g. A3F8C2', btn_join_code:'Join',
+    or_select:'or select a room', available_rooms:'Available Rooms',
+    btn_refresh:'↻ Refresh', no_rooms:'No rooms available',
+    waiting_title:'Waiting Room',
+    room_code_label:'Room Code — Share with friends',
+    room_code_hint:'Click to copy',
+    seats_label:'Seats', game_settings:'Game Settings',
+    buyin_max_label:'Max buy-in (chips)',
+    btn_start:'Start Game', waiting_for_host:'Waiting for host to start...',
+    btn_exit:'✕ Exit', btn_history:'📋 History', btn_end_game:'⏹ End Game',
+    pending_end:'Host has requested to end the game — settling after this hand',
+    btn_fold:'Fold', btn_raise:'Raise',
+    preset_third:'1/3 Pot', preset_half:'½ Pot', preset_pot:'Pot',
+    btn_raise_cancel:'Cancel',
+    btn_raise_confirm_raise:'Confirm Raise', btn_raise_confirm_bet:'Confirm Bet',
+    buyin_title:'Out of chips', btn_buyin:'Buy In',
+    game_waiting:'Waiting to start...',
+    history_header:'Hand History', buyin_modal_title:'Buy In',
+    btn_buyin_cancel:'Cancel', btn_buyin_confirm:'Confirm Buy In',
+    spectator_label:'👀 Spectating', standing_label:'🏃 Standing',
+    standing_hint:'Click an empty seat to join next hand',
+    btn_stand_up:'Stand Up',
+    final_title:'🏆 Game Over · Final Results', btn_final_exit:'Exit Game',
+    reconnecting:'Connecting...',
+    phase_waiting:'Waiting', phase_preflop:'Pre-Flop', phase_flop:'Flop',
+    phase_turn:'Turn', phase_river:'River', phase_showdown:'Showdown',
+    action_fold:'Fold', action_check:'Check', action_call:'Call',
+    action_bet:'Bet', action_raise:'Raise', action_allin:'All In',
+    high_card:'High Card', one_pair:'One Pair', two_pair:'Two Pair',
+    three_of_a_kind:'Three of a Kind', straight:'Straight', flush:'Flush',
+    full_house:'Full House', four_of_a_kind:'Four of a Kind',
+    straight_flush:'Straight Flush', royal_flush:'Royal Flush',
+    pot: n => `Pot ${n}`,
+    my_chips: n => `Chips: ${n}`,
+    my_chips_loaned: n => `Total loaned: ${n}`,
+    first_buyin:'First buy-in',
+    countdown: n => `Next hand in ${n}s`,
+    winner_banner: (names, pot) => `🏆 ${names} won ${pot} chips`,
+    btn_show_cards:'Show Cards', btn_buyin_continue:'Buy In to Continue',
+    lb_detail: (inv, chips) => `Invested ${inv} → Remaining ${chips}`,
+    seat_me:'Me', seat_player:'Player',
+    seat_num: n => `Seat ${n}`, seat_stand_up:'Stand Up', seat_click:'Click to sit',
+    history_empty:'No hand history',
+    history_title: n => `Hand History (${n})`,
+    hist_no_show:'Not shown', hist_fold:'—', hist_no_comm:'No board',
+    hist_fold_win:'Won by fold',
+    reconnect_msg:'Reconnecting...', reconnect_sub:'Restoring game state',
+    disconnect_msg:'Reconnecting...', disconnect_network:'Network disconnected',
+    disconnect_lost:'Connection lost',
+    connect_error:'Connection failed', connect_retry:'Retrying...',
+    session_expired:'Session expired, please rejoin',
+    in_progress:'In Progress',
+    room_host: name => `Host: ${name}`,
+    room_players: n => `${n}/9`,
+    toast_enter_name:'Please enter a nickname',
+    toast_enter_code:'Please enter a room code',
+    toast_code_copied:'Code copied',
+    toast_refreshing:'↻ Refreshing...', toast_refresh:'↻ Refresh',
+    confirm_exit:'Exit the game? Your chips will not be saved.',
+    confirm_end:'End the game? Final standings will be shown after this hand.',
+    spectator_buyin_hint:'Buy in to join next hand',
+    spectator_waiting_hint:'Will join automatically next hand',
+    spectator_choose_hint:'Click an empty seat to join next hand',
+    community_placeholder:'Community Cards',
+    seat_loan: n => `Loan ${n}`,
+  },
+  zh: {
+    page_title:'德州扑克',
+    title:'德州扑克', subtitle:'Texas Hold\'em',
+    name_label:'你的昵称', name_placeholder:'输入昵称...',
+    btn_create:'创建房间', btn_join:'加入游戏',
+    join_title:'加入游戏', enter_code:'输入房间代码',
+    code_placeholder:'如: A3F8C2', btn_join_code:'加入',
+    or_select:'或选择房间', available_rooms:'可用房间',
+    btn_refresh:'↻ 刷新', no_rooms:'暂无可加入的房间',
+    waiting_title:'等待室',
+    room_code_label:'房间代码 — 分享给朋友',
+    room_code_hint:'点击代码复制',
+    seats_label:'座位', game_settings:'游戏设置',
+    buyin_max_label:'单次买入上限 (筹码)',
+    btn_start:'开始游戏', waiting_for_host:'等待房主开始游戏…',
+    btn_exit:'✕ 退出', btn_history:'📋 历史', btn_end_game:'⏹ 结束游戏',
+    pending_end:'房主已申请结束游戏，本局结束后进行结算',
+    btn_fold:'弃牌', btn_raise:'加注',
+    preset_third:'1/3池', preset_half:'半池', preset_pot:'全池',
+    btn_raise_cancel:'取消',
+    btn_raise_confirm_raise:'确认加注', btn_raise_confirm_bet:'确认下注',
+    buyin_title:'筹码耗尽', btn_buyin:'买入筹码',
+    game_waiting:'等待开始…',
+    history_header:'历史牌局', buyin_modal_title:'买入筹码',
+    btn_buyin_cancel:'取消', btn_buyin_confirm:'确认买入',
+    spectator_label:'👀 观战中', standing_label:'🏃 站立观战中',
+    standing_hint:'请点击空位入座，下一局参与游戏',
+    btn_stand_up:'站起',
+    final_title:'🏆 游戏结束 · 最终结算', btn_final_exit:'退出游戏',
+    reconnecting:'连接中…',
+    phase_waiting:'等待', phase_preflop:'翻牌前', phase_flop:'翻牌',
+    phase_turn:'转牌', phase_river:'河牌', phase_showdown:'摊牌',
+    action_fold:'弃牌', action_check:'过牌', action_call:'跟注',
+    action_bet:'下注', action_raise:'加注', action_allin:'All In',
+    high_card:'高牌', one_pair:'一对', two_pair:'两对',
+    three_of_a_kind:'三条', straight:'顺子', flush:'同花',
+    full_house:'葫芦', four_of_a_kind:'四条',
+    straight_flush:'同花顺', royal_flush:'皇家同花顺',
+    pot: n => `底池 ${n}`,
+    my_chips: n => `筹码: ${n}`,
+    my_chips_loaned: n => `累计借入: ${n} 筹码`,
+    first_buyin:'首次买入',
+    countdown: n => `${n}s 后开始下一局`,
+    winner_banner: (names, pot) => `🏆 ${names} 赢得 ${pot} 筹码`,
+    btn_show_cards:'亮牌给大家看', btn_buyin_continue:'买入筹码继续游戏',
+    lb_detail: (inv, chips) => `投入 ${inv} → 剩余 ${chips}`,
+    seat_me:'我', seat_player:'玩家',
+    seat_num: n => `${n}号座`, seat_stand_up:'站起', seat_click:'点击入座',
+    history_empty:'暂无历史牌局',
+    history_title: n => `历史牌局（${n} 局）`,
+    hist_no_show:'未亮牌', hist_fold:'—', hist_no_comm:'无公牌',
+    hist_fold_win:'弃牌获胜',
+    reconnect_msg:'重连中…', reconnect_sub:'正在恢复游戏状态',
+    disconnect_msg:'断线重连中…', disconnect_network:'网络已断开',
+    disconnect_lost:'连接丢失',
+    connect_error:'连接失败', connect_retry:'正在重试…',
+    session_expired:'会话已过期，请重新加入',
+    in_progress:'游戏中',
+    room_host: name => `房主: ${name}`,
+    room_players: n => `${n}/9 人`,
+    toast_enter_name:'请输入昵称',
+    toast_enter_code:'请输入房间代码',
+    toast_code_copied:'代码已复制',
+    toast_refreshing:'↻ 刷新中…', toast_refresh:'↻ 刷新',
+    confirm_exit:'确定退出当前牌局？离开后筹码将不予保留。',
+    confirm_end:'确定结束游戏？本局打完后将进入最终结算。',
+    spectator_buyin_hint:'买入筹码后可加入下一局',
+    spectator_waiting_hint:'下一局开始后自动上桌',
+    spectator_choose_hint:'请点击空位入座，下一局参与游戏',
+    community_placeholder:'公共牌',
+    seat_loan: n => `借${n}`,
+  }
+};
+
+function t(key, ...args) {
+  const lang = window.GAME_LANG || 'en';
+  const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
+  const v = dict[key] ?? TRANSLATIONS.en[key] ?? key;
+  return typeof v === 'function' ? v(...args) : v;
+}
+
+// Server sends lastAction as Chinese; map to i18n key
+const ACTION_KEY = {
+  '弃牌':'action_fold','过牌':'action_check','跟注':'action_call',
+  '下注':'action_bet','加注':'action_raise','全押':'action_allin',
+};
+
 // ── Constants ──────────────────────────────────────────────
 const SUIT_SYM   = { s:'♠', h:'♥', d:'♦', c:'♣' };
 const SUIT_COLOR = { s:'#111', h:'#d32f2f', d:'#d32f2f', c:'#111' };
 const SEAT_POS   = [
-  [50, 87], [81, 73], [93, 47], [80, 19],
-  [50,  8], [20, 19], [ 7, 47], [19, 73],
+  [50, 87],  // 0: 我（底部中）
+  [19, 73],  // 1: 左下
+  [12, 47],  // 2: 左中
+  [16, 20],  // 3: 左上
+  [34, 10],  // 4: 上左
+  [66, 10],  // 5: 上右
+  [84, 20],  // 6: 右上
+  [88, 47],  // 7: 右中
+  [81, 73],  // 8: 右下
 ];
-const PHASE_LABEL = { waiting:'等待', preflop:'翻牌前', flop:'翻牌', turn:'转牌', river:'河牌', showdown:'摊牌' };
+const PHASE_LABEL = { waiting:'phase_waiting', preflop:'phase_preflop', flop:'phase_flop', turn:'phase_turn', river:'phase_river', showdown:'phase_showdown' };
 const TURN_SEC = 30;
 const SESSION_KEY = 'poker_session';
 
@@ -806,9 +1081,10 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
-function showReconnecting(msg='重连中…', sub='请保持网络连接') {
+function showReconnecting(msg, sub) {
+  if (!msg) msg = t('reconnect_msg');
   document.getElementById('reconnect-msg').textContent = msg;
-  document.getElementById('reconnect-sub').textContent = sub;
+  if (sub !== undefined) document.getElementById('reconnect-sub').textContent = sub;
   document.getElementById('reconnect-overlay').classList.remove('hidden');
 }
 function hideReconnecting() {
@@ -816,17 +1092,20 @@ function hideReconnecting() {
 }
 
 // ── Action animation ───────────────────────────────────────
-// action: lastAction string ('跟注','加注','弃牌','过牌','全押')
+// action: lastAction string (server Chinese key, e.g. '跟注') OR i18n key (e.g. 'action_call')
 // amount: chip delta (used for call/raise/allin labels)
 function showActionAnimation(leftPct, topPct, action, amount) {
+  // Normalize: server sends Chinese; map to action key
+  const key = ACTION_KEY[action] || action;
   const styles = {
-    '加注': { bg:'linear-gradient(135deg,#FFD700,#e6a800)', color:'#000', label:'+'+amount },
-    '跟注': { bg:'linear-gradient(135deg,#1976D2,#1565C0)', color:'#fff', label:'+'+amount },
-    '全押': { bg:'linear-gradient(135deg,#FF6B35,#e65100)', color:'#fff', label: amount>0 ? `All In +${amount}` : 'All In', big:true },
-    '弃牌': { bg:'linear-gradient(135deg,#c62828,#b71c1c)', color:'#fff', label:'弃牌' },
-    '过牌': { bg:'linear-gradient(135deg,#558b2f,#33691e)', color:'#fff', label:'过牌' },
+    'action_raise': { bg:'linear-gradient(135deg,#FFD700,#e6a800)', color:'#000', label:'+'+amount },
+    'action_call':  { bg:'linear-gradient(135deg,#1976D2,#1565C0)', color:'#fff', label:'+'+amount },
+    'action_allin': { bg:'linear-gradient(135deg,#FF6B35,#e65100)', color:'#fff', label: amount>0 ? `All In +${amount}` : 'All In', big:true },
+    'action_fold':  { bg:'linear-gradient(135deg,#c62828,#b71c1c)', color:'#fff', label:t('action_fold') },
+    'action_check': { bg:'linear-gradient(135deg,#558b2f,#33691e)', color:'#fff', label:t('action_check') },
+    'action_bet':   { bg:'linear-gradient(135deg,#FFD700,#e6a800)', color:'#000', label:'+'+amount },
   };
-  const s = styles[action];
+  const s = styles[key];
   if (!s) return;
   const wrap = document.getElementById('table-wrap');
   const el = document.createElement('div');
@@ -838,12 +1117,11 @@ function showActionAnimation(leftPct, topPct, action, amount) {
   el.style.top = topPct + '%';
   wrap.appendChild(el);
   setTimeout(() => el.remove(), s.big ? 2100 : 1500);
-  // 播放对应音效
-  if      (action === '全押') playAllinSound();
-  else if (action === '加注') playChipSound(true);
-  else if (action === '跟注') playChipSound(false);
-  else if (action === '弃牌') playFoldSound();
-  else if (action === '过牌') playCheckSound();
+  if      (key === 'action_allin') playAllinSound();
+  else if (key === 'action_raise' || key === 'action_bet') playChipSound(true);
+  else if (key === 'action_call')  playChipSound(false);
+  else if (key === 'action_fold')  playFoldSound();
+  else if (key === 'action_check') playCheckSound();
 }
 
 // ── Chip-to-winner animation ────────────────────────────────
@@ -857,9 +1135,7 @@ function animateChipsToWinners(state) {
   const fromX = potRect.left + potRect.width / 2 - wrapRect.left;
   const fromY = potRect.top  + potRect.height / 2 - wrapRect.top;
 
-  const myIdx = state.players.findIndex(p => p.id === state.myId);
-  const base  = myIdx >= 0 ? myIdx : 0;
-  const n     = state.players.length;
+  const mySeat = state.mySeatIndex ?? 0;
 
   // Accumulate total winnings per player across all side pots
   const winnerMap = {};
@@ -872,9 +1148,9 @@ function animateChipsToWinners(state) {
 
   let groupDelay = 0;
   for (const [winnerId, amount] of Object.entries(winnerMap)) {
-    const pidx = state.players.findIndex(p => p.id === winnerId);
-    if (pidx < 0) continue;
-    const slot = (pidx - base + n) % n;
+    const winnerPlayer = state.players.find(p => p.id === winnerId);
+    if (!winnerPlayer || winnerPlayer.seatIndex === null) continue;
+    const slot = (winnerPlayer.seatIndex - mySeat + 9) % 9;
     const [lp, tp] = SEAT_POS[slot] || [50, 50];
     const toX = wrapRect.width  * lp / 100;
     const toY = wrapRect.height * tp / 100;
@@ -909,7 +1185,7 @@ function animateChipsToWinners(state) {
 // ── Deal cards animation ────────────────────────────────────
 function triggerDealAnimation(state) {
   const n = state.players.length;
-  // 初始化发牌状态：所有牌都未出现
+  // 初始化发牌状态：所有牌都未出现（indexed by player array index）
   dealingState = {
     cardsShown: Array.from({length: n}, () => [false, false]),
     revealed: false,
@@ -920,13 +1196,20 @@ function triggerDealAnimation(state) {
   const fromX = wrapRect.width  * 0.5;
   const fromY = wrapRect.height * 0.5;
 
+  const mySeat = state.mySeatIndex ?? 0;
+  const myPlayerIdx = state.players.findIndex(p => p.id === state.myId);
+
   let delay = 0;
   let cardsDealt = 0;
   const totalCards = n * 2;
 
   for (let round = 0; round < 2; round++) {
-    for (let slot = 0; slot < n; slot++) {
-      const [lp, tp] = SEAT_POS[slot] || [50, 50];
+    for (let pi = 0; pi < n; pi++) {
+      // Map player index to visual slot
+      const player = state.players[pi];
+      const playerSeat = player.seatIndex ?? ((mySeat + pi) % 9);
+      const visualSlot = (playerSeat - mySeat + 9) % 9;
+      const [lp, tp] = SEAT_POS[visualSlot] || [50, 50];
       const toX = wrapRect.width  * lp / 100;
       const toY = wrapRect.height * tp / 100;
       const dx  = toX - fromX;
@@ -947,7 +1230,8 @@ function triggerDealAnimation(state) {
       ].join(';');
       wrap.appendChild(el);
 
-      const capturedSlot = slot, capturedRound = round;
+      const capturedPi = pi, capturedRound = round;
+      const isMe = (myPlayerIdx >= 0 && pi === myPlayerIdx);
       el.animate([
         { transform: 'translate(-50%,-50%) scale(1.1)',                                                      opacity: 1 },
         { transform: `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(0.9)`, opacity: 1, offset: 0.75 },
@@ -961,10 +1245,10 @@ function triggerDealAnimation(state) {
         if (!dealingState) return;
         playDealSound();
         // 牌落地：在座位上显示面朝下的牌
-        dealingState.cardsShown[capturedSlot][capturedRound] = true;
+        dealingState.cardsShown[capturedPi][capturedRound] = true;
         renderSeats(gameState);
-        // 同步更新自己底部手牌区（slot 0 = 自己）
-        if (capturedSlot === 0) updateMyCardsDuringDeal();
+        // 同步更新自己底部手牌区
+        if (isMe) updateMyCardsDuringDeal();
 
         cardsDealt++;
         if (cardsDealt === totalCards) {
@@ -991,7 +1275,9 @@ function triggerDealAnimation(state) {
 
 function updateMyCardsDuringDeal() {
   if (!dealingState || dealingState.revealed) return;
-  const shown = dealingState.cardsShown[0];
+  // Find my player index
+  const myPlayerIdx = gameState?.players?.findIndex(p => p.id === gameState?.myId) ?? 0;
+  const shown = dealingState.cardsShown[myPlayerIdx >= 0 ? myPlayerIdx : 0] || [false, false];
   const count = (shown[0] ? 1 : 0) + (shown[1] ? 1 : 0);
   document.getElementById('my-cards-row').innerHTML =
     Array(count).fill(null).map(() => cardHtml(null, true)).join('');
@@ -1129,13 +1415,13 @@ function initSocket() {
       // Restore name if coming from localStorage
       if (!myId) myName = session.name;
 
-      showReconnecting('重连中…', '正在恢复游戏状态');
+      showReconnecting(t('reconnect_msg'), t('reconnect_sub'));
       socket.emit('rejoin_room', { playerId: idToRejoin, roomCode: rcToRejoin }, (res) => {
         if (res.error) {
           clearSession();
           hideReconnecting();
           showScreen('lobby');
-          showToast('会话已过期，请重新加入');
+          showToast(t('session_expired'));
           return;
         }
         myId = idToRejoin;
@@ -1158,26 +1444,26 @@ function initSocket() {
   socket.on('disconnect', (reason) => {
     // Only show reconnecting overlay if we're actively in a session
     if (myId) {
-      showReconnecting('断线重连中…', reason === 'transport close' ? '网络已断开' : '连接丢失');
+      showReconnecting(t('disconnect_msg'), reason === 'transport close' ? t('disconnect_network') : t('disconnect_lost'));
     }
   });
 
   socket.on('connect_error', () => {
-    if (myId) showReconnecting('连接失败', '正在重试…');
+    if (myId) showReconnecting(t('connect_error'), t('connect_retry'));
   });
 
   socket.on('rooms_list', (list) => {
     const el = document.getElementById('rooms-list');
-    if (!list.length) { el.innerHTML = '<div class="empty-hint">暂无可加入的房间</div>'; return; }
+    if (!list.length) { el.innerHTML = `<div class="empty-hint">${t('no_rooms')}</div>`; return; }
     el.innerHTML = list.map(r => `
       <div class="room-item" data-code="${esc(r.code)}">
         <div class="room-info">
           <div class="room-code">${esc(r.code)}
-            ${r.inProgress ? '<span style="font-size:10px;background:#e65100;padding:1px 5px;border-radius:3px;margin-left:6px;font-weight:700">游戏中</span>' : ''}
+            ${r.inProgress ? `<span style="font-size:10px;background:#e65100;padding:1px 5px;border-radius:3px;margin-left:6px;font-weight:700">${t('in_progress')}</span>` : ''}
           </div>
-          <div class="room-host">房主: ${esc(r.hostName)}</div>
+          <div class="room-host">${t('room_host', esc(r.hostName))}</div>
         </div>
-        <div class="room-count">${r.playerCount}/8 人</div>
+        <div class="room-count">${t('room_players', r.playerCount)}</div>
       </div>`).join('');
     el.querySelectorAll('.room-item').forEach(el => {
       el.addEventListener('click', () => joinRoom(el.dataset.code));
@@ -1196,6 +1482,10 @@ function initSocket() {
 
   socket.on('game_state', (state) => {
     gameState = state;
+    if (state.phase === 'waiting') {
+      // Stay on waiting screen; update via room_update
+      return;
+    }
     if (!document.getElementById('game').classList.contains('active')) showScreen('game');
     renderGame(state);
   });
@@ -1204,7 +1494,7 @@ function initSocket() {
 // ── Lobby actions ──────────────────────────────────────────
 document.getElementById('btn-create').addEventListener('click', () => {
   myName = document.getElementById('name-input').value.trim();
-  if (!myName) { showToast('请输入昵称'); return; }
+  if (!myName) { showToast(t('toast_enter_name')); return; }
   socket.emit('create_room', { name: myName }, (res) => {
     if (res.error) { showToast(res.error); return; }
     myId = res.playerId;
@@ -1217,7 +1507,7 @@ document.getElementById('btn-create').addEventListener('click', () => {
 
 document.getElementById('btn-go-join').addEventListener('click', () => {
   myName = document.getElementById('name-input').value.trim();
-  if (!myName) { showToast('请输入昵称'); return; }
+  if (!myName) { showToast(t('toast_enter_name')); return; }
   socket.emit('get_rooms');
   showScreen('join');
 });
@@ -1226,14 +1516,14 @@ document.getElementById('btn-back-lobby').addEventListener('click', () => showSc
 
 document.getElementById('btn-refresh-rooms').addEventListener('click', function() {
   socket.emit('get_rooms');
-  this.textContent = '↻ 刷新中…';
+  this.textContent = t('toast_refreshing');
   this.disabled = true;
-  setTimeout(() => { this.textContent = '↻ 刷新'; this.disabled = false; }, 800);
+  setTimeout(() => { this.textContent = t('toast_refresh'); this.disabled = false; }, 800);
 });
 
 document.getElementById('btn-join-code').addEventListener('click', () => {
   const code = document.getElementById('code-input').value.trim().toUpperCase();
-  if (!code) { showToast('请输入房间代码'); return; }
+  if (!code) { showToast(t('toast_enter_code')); return; }
   joinRoom(code);
 });
 
@@ -1253,7 +1543,7 @@ function joinRoom(code) {
 }
 
 document.getElementById('display-code').addEventListener('click', () => {
-  navigator.clipboard?.writeText(roomCode).then(() => showToast('代码已复制'));
+  navigator.clipboard?.writeText(roomCode).then(() => showToast(t('toast_code_copied')));
 });
 
 document.getElementById('btn-leave-room').addEventListener('click', () => {
@@ -1272,17 +1562,57 @@ document.getElementById('btn-start').addEventListener('click', () => {
 // ── Waiting room render ────────────────────────────────────
 function renderWaiting(info) {
   document.getElementById('player-count').textContent = info.playerCount;
-  document.getElementById('waiting-players').innerHTML = info.players.map(p => `
-    <div class="player-item">
-      <div class="player-avatar-sm">${esc(p.name.charAt(0).toUpperCase())}</div>
-      <div>
-        <span class="player-name-sm">${esc(p.name)}</span>
-        ${p.id === info.hostId ? '<span class="host-tag">房主</span>' : ''}
-      </div>
-    </div>`).join('');
+
+  // Render seat table
+  const seatsEl = document.getElementById('waiting-seats');
+  const seats = info.seats || [];
+  const amHost = info.hostId === myId;
+
+  let tableHtml = '<div id="waiting-seat-table">';
+  for (let i = 0; i < 9; i++) {
+    const seat = seats[i] || { seatIndex: i, playerId: null, name: null };
+    const [lp, tp] = SEAT_POS[i];
+    const isOccupied = seat.playerId !== null;
+    const isMine = seat.playerId === myId;
+    let cls = 'waiting-seat';
+    if (isMine) cls += ' mine';
+    else if (isOccupied) cls += ' occupied';
+    else cls += ' selectable';
+
+    const label = isMine ? (seat.name || t('seat_me'))
+      : isOccupied ? (seat.name || t('seat_player'))
+      : t('seat_num', i+1);
+    const standUpBtn = isMine ? `<button class="stand-up-btn" data-seat="${i}">${t('seat_stand_up')}</button>` : '';
+    tableHtml += `<div class="${cls}" style="left:${lp}%;top:${tp}%" data-seat="${i}">
+      <div class="waiting-seat-circle">${isOccupied ? esc((seat.name||'?').charAt(0).toUpperCase()) : (i+1)}</div>
+      <div class="waiting-seat-label">${esc(label)}</div>
+      ${standUpBtn}
+    </div>`;
+  }
+  tableHtml += '</div>';
+  seatsEl.innerHTML = tableHtml;
+
+  // Seat click handlers
+  seatsEl.querySelectorAll('.waiting-seat.selectable').forEach(el => {
+    el.addEventListener('click', () => {
+      const seatIndex = parseInt(el.dataset.seat);
+      socket.emit('sit_down', { seatIndex }, (res) => {
+        if (res?.error) showToast(res.error);
+      });
+    });
+  });
+
+  // Stand-up click handlers (waiting room)
+  seatsEl.querySelectorAll('.stand-up-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      socket.emit('stand_up', (res) => {
+        if (res?.error) showToast(res.error);
+      });
+    });
+  });
 
   // Show start button only for the host
-  const amHost = info.hostId === myId;
   document.getElementById('btn-start').style.display = amHost ? 'block' : 'none';
   document.getElementById('waiting-msg').style.display = amHost ? 'none' : 'block';
 
@@ -1321,25 +1651,46 @@ function renderGame(state) {
 
   // Spectator mode: show banner, hide action area and my cards
   const banner = document.getElementById('spectator-banner');
+  const standingBanner = document.getElementById('standing-banner');
   const bottomPanel = document.getElementById('bottom-panel');
   const buyinBannerBtn = document.getElementById('btn-buyin-banner');
   if (state.isSpectator) {
-    banner.classList.add('visible');
     bottomPanel.style.display = 'none';
-    if (state.isBrokeSpectator && state.canBuyIn) {
+    if (state.isStanding) {
+      // Standing player: show "choose a seat" banner
+      banner.classList.remove('visible');
+      standingBanner.classList.add('visible');
+      buyinBannerBtn.style.display = 'none';
+    } else if (state.isBrokeSpectator && state.canBuyIn) {
       // Broke spectator: show buy-in button in banner
-      document.getElementById('spectator-hint').textContent = '买入筹码后可加入下一局';
-      buyinBannerBtn.textContent = '买入筹码';
+      standingBanner.classList.remove('visible');
+      banner.classList.add('visible');
+      document.getElementById('spectator-hint').textContent = t('spectator_buyin_hint');
+      buyinBannerBtn.textContent = t('btn_buyin');
       buyinBannerBtn.style.display = 'block';
+    } else if (state.mySeatIndex !== null) {
+      // Seated pending player: waiting for next hand
+      standingBanner.classList.remove('visible');
+      banner.classList.add('visible');
+      document.getElementById('spectator-hint').textContent = t('spectator_waiting_hint');
+      buyinBannerBtn.style.display = 'none';
     } else {
-      document.getElementById('spectator-hint').textContent = '下一局开始后自动上桌';
+      // Unseated spectator: prompt to choose a seat
+      standingBanner.classList.remove('visible');
+      banner.classList.add('visible');
+      document.getElementById('spectator-hint').textContent = t('spectator_choose_hint');
       buyinBannerBtn.style.display = 'none';
     }
   } else {
     banner.classList.remove('visible');
+    standingBanner.classList.remove('visible');
     buyinBannerBtn.style.display = 'none';
     bottomPanel.style.display = 'flex';
   }
+
+  // Stand-up button visibility
+  const standUpBtn = document.getElementById('btn-stand-up');
+  standUpBtn.style.display = state.canStandUp ? 'block' : 'none';
 
   // End game button visibility (host only)
   document.getElementById('btn-end-game').style.display =
@@ -1356,7 +1707,7 @@ function renderGame(state) {
     buyinPanel.style.display = 'flex';
     actionRow.style.display = 'none';
     document.getElementById('buyin-loan-info').textContent =
-      state.myTotalLoaned > 0 ? `累计借入: ${state.myTotalLoaned} 筹码` : '首次买入';
+      state.myTotalLoaned > 0 ? t('my_chips_loaned', state.myTotalLoaned) : t('first_buyin');
   } else {
     buyinPanel.style.display = 'none';
     if (!document.getElementById('raise-panel').style.display ||
@@ -1365,8 +1716,8 @@ function renderGame(state) {
     }
   }
 
-  document.getElementById('phase-badge').textContent = PHASE_LABEL[state.phase] || state.phase;
-  document.getElementById('pot-display').textContent = state.pot > 0 ? `底池 ${state.pot}` : '';
+  document.getElementById('phase-badge').textContent = t(PHASE_LABEL[state.phase] || state.phase);
+  document.getElementById('pot-display').textContent = state.pot > 0 ? t('pot', state.pot) : '';
 
   // Community cards with deal animation for newly added cards
   const prevCount = prevCommunityCount;
@@ -1382,12 +1733,12 @@ function renderGame(state) {
         <span class="card-rank">${rankLabel(c.rank)}</span>
         <span class="card-suit">${SUIT_SYM[c.suit]}</span>
       </div>`;
-    }).join('') || '<div style="color:rgba(255,255,255,.18);font-size:12px">公共牌</div>';
+    }).join('') || `<div style="color:rgba(255,255,255,.18);font-size:12px">${t('community_placeholder')}</div>`;
 
   const me = state.players.find(p => p.id === state.myId);
   if (me) {
-    document.getElementById('my-chips').textContent = `筹码: ${me.chips}`;
-    document.getElementById('my-hand-name').textContent = me.handName || '';
+    document.getElementById('my-chips').textContent = t('my_chips', me.chips);
+    document.getElementById('my-hand-name').textContent = me.handName ? t(me.handName) : '';
     if (!dealingState) {
       // 正常渲染
       document.getElementById('my-cards-row').innerHTML = me.holeCards.map(c => cardHtml(c, true)).join('');
@@ -1406,9 +1757,7 @@ function renderGame(state) {
 }
 
 function renderSeats(state) {
-  const rawIdx = state.players.findIndex(p => p.id === state.myId);
-  const myIdx = rawIdx >= 0 ? rawIdx : 0; // spectators: no rotation, start from seat 0
-  const n = state.players.length;
+  const mySeat = state.mySeatIndex ?? 0; // visual slot 0 = my seat position
   const container = document.getElementById('seats');
   container.innerHTML = '';
 
@@ -1417,9 +1766,50 @@ function renderSeats(state) {
     ? new Set(state.lastResult.flatMap(r => r.winners.map(w => w.id)))
     : new Set();
 
-  for (let slot = 0; slot < n; slot++) {
-    const player = state.players[(myIdx + slot) % n];
-    const [left, top] = SEAT_POS[slot] || [50, 50];
+  // Build lookup: seatIndex -> player object
+  const playerBySeat = {};
+  for (const p of state.players) {
+    if (p.seatIndex !== null) playerBySeat[p.seatIndex] = p;
+  }
+
+  // Also track which player index (in state.players) corresponds to each seat for dealing animation
+  const playerIdxBySeat = {};
+  state.players.forEach((p, idx) => { if (p.seatIndex !== null) playerIdxBySeat[p.seatIndex] = idx; });
+
+  // Determine my player index for dealing animation (slot 0 = me)
+  const myPlayerIdx = state.players.findIndex(p => p.id === state.myId);
+
+  // canSitDown: standing player can click empty seats
+  const canSitDown = state.isStanding || (state.isSpectator && !state.isBrokeSpectator && state.mySeatIndex === null);
+
+  for (let slot = 0; slot < 9; slot++) {
+    // Map visual slot to global seat index (counterclockwise from my seat)
+    const globalSeat = (mySeat + slot) % 9;
+    const [left, top] = SEAT_POS[slot];
+
+    const player = playerBySeat[globalSeat] ?? null;
+
+    if (!player) {
+      // Empty seat
+      const div = document.createElement('div');
+      const selectable = canSitDown;
+      div.className = 'seat-empty' + (selectable ? ' selectable' : '');
+      div.style.cssText = `left:${left}%;top:${top}%`;
+      div.innerHTML = `
+        <div class="seat-empty-circle">${globalSeat + 1}</div>
+        <div class="seat-empty-label">${selectable ? t('seat_click') : ''}</div>`;
+      if (selectable) {
+        div.addEventListener('click', () => {
+          socket.emit('sit_down', { seatIndex: globalSeat }, (res) => {
+            if (res?.error) showToast(res.error);
+          });
+        });
+      }
+      container.appendChild(div);
+      continue;
+    }
+
+    // Occupied seat — render player
     const isMe = player.id === state.myId;
     const isWinner = winnerIds.has(player.id);
 
@@ -1429,19 +1819,18 @@ function renderSeats(state) {
     if (state.phase !== 'showdown') {
       const actionChanged = player.lastAction && player.lastAction !== prevAction;
       const delta = player.roundBet - prevBet;
-      // 浮动文字：action变化时，或同一动作再次下注（连续加注场景）
-      if (actionChanged || (delta > 0 && player.lastAction && ['加注', '全押'].includes(player.lastAction))) {
+      const lastKey = ACTION_KEY[player.lastAction] || player.lastAction;
+      if (actionChanged || (delta > 0 && player.lastAction && ['action_raise', 'action_allin', 'action_bet'].includes(lastKey))) {
         showActionAnimation(left, top, player.lastAction, delta > 0 ? delta : 0);
       }
-      // 筹码飞向底池：只要下注额增加就触发（解决连续跟注/再跟注场景）
-      if (delta > 0 && player.lastAction && ['跟注', '加注', '全押'].includes(player.lastAction)) {
+      if (delta > 0 && player.lastAction && ['action_call', 'action_raise', 'action_allin', 'action_bet'].includes(lastKey)) {
         animateChipsToPot(left, top, delta);
       }
     }
     prevLastActions[player.id] = player.lastAction ?? null;
     prevBets[player.id] = player.roundBet;
 
-    const isAllinFlash = player.lastAction === '全押' && !isShowdown;
+    const isAllinFlash = ACTION_KEY[player.lastAction] === 'action_allin' && !isShowdown;
     const classes = ['seat', isMe?'me':'', player.isCurrent?'current':'',
       player.folded?'folded':'', player.disconnected?'disconnected':'',
       isWinner?'winner':'', isAllinFlash?'allin-flash':''].filter(Boolean).join(' ');
@@ -1452,26 +1841,35 @@ function renderSeats(state) {
 
     let actionBadge = '';
     if (player.lastAction && !isShowdown) {
-      const cls = player.lastAction==='弃牌'?'fold':
-                  (player.lastAction==='加注'||player.lastAction==='全押')?'raise':
-                  player.lastAction==='过牌'?'check':'';
-      const badgeText = player.lastAction === '全押' ? 'All In' : player.lastAction;
+      const akey = ACTION_KEY[player.lastAction] || player.lastAction;
+      const cls = akey==='action_fold'?'fold':
+                  (akey==='action_raise'||akey==='action_allin')?'raise':
+                  akey==='action_bet'?'bet':
+                  akey==='action_check'?'check':'';
+      const badgeText = akey === 'action_allin' ? 'All In' : t(akey);
       actionBadge = `<div class="action-badge ${cls}">${esc(badgeText)}</div>`;
     }
 
     const roles = [
-      player.isDealer && n>2 ? '<span class="badge D">D</span>' : '',
+      player.isDealer ? '<span class="badge D">D</span>' : '',
       player.isSB ? '<span class="badge SB">SB</span>' : '',
       player.isBB ? '<span class="badge BB">BB</span>' : '',
     ].join('');
 
-    // Mini cards
+    // Mini cards — use dealing slot index for animation
     let miniCards = '';
     if (!isMe && player.holeCards.length > 0) {
+      // Find slot index among active players for dealing animation
+      const dealSlot = (() => {
+        if (myPlayerIdx < 0) return slot;
+        const n = state.players.length;
+        const playerIdx = playerIdxBySeat[globalSeat];
+        if (playerIdx === undefined) return slot;
+        return (playerIdx - myPlayerIdx + n) % n;
+      })();
       let cardsHtml;
       if (dealingState) {
-        // 发牌动画期间：按已落地的牌数显示面朝下的牌
-        const shown = dealingState.cardsShown[slot] || [false, false];
+        const shown = dealingState.cardsShown[dealSlot] || [false, false];
         cardsHtml = [0, 1].filter(i => shown[i])
           .map(() => '<div class="mini-card back"></div>').join('');
       } else {
@@ -1485,12 +1883,10 @@ function renderSeats(state) {
       if (cardsHtml) miniCards = `<div class="seat-mini-cards">${cardsHtml}</div>`;
     }
 
-    // Hand name badge (showdown only)
     const handBadge = (isShowdown && player.handName && !player.folded)
-      ? `<div class="hand-badge ${isWinner?'winner':''}">${esc(player.handName)}</div>`
+      ? `<div class="hand-badge ${isWinner?'winner':''}">${esc(t(player.handName))}</div>`
       : '';
 
-    // Win amount badge (showdown only, for winners)
     let winAmount = 0;
     if (isShowdown && state.lastResult) {
       for (const r of state.lastResult) {
@@ -1505,18 +1901,23 @@ function renderSeats(state) {
     const div = document.createElement('div');
     div.className = classes;
     div.style.cssText = `left:${left}%;top:${top}%`;
+    const loanText = player.totalLoaned > 0 ? `<span class="seat-loan">${t('seat_loan', player.totalLoaned)}</span>` : '';
+    const betText = player.roundBet > 0 ? `<span class="seat-bet">+${player.roundBet}</span>` : '';
     div.innerHTML = `
-      <div class="seat-avatar-wrap">
-        ${timerSvg}
-        <div class="seat-avatar">${esc(player.name.charAt(0).toUpperCase())}</div>
-        ${actionBadge}
+      <div class="seat-top-row">
+        <div class="seat-avatar-wrap">
+          ${timerSvg}
+          <div class="seat-avatar">${esc(player.name.charAt(0).toUpperCase())}</div>
+          ${actionBadge}
+          <div class="seat-role-pin">${roles}</div>
+        </div>
+        ${miniCards}
       </div>
-      <div class="seat-name">${esc(player.name)}</div>
-      <div class="seat-chips">${player.chips}</div>
-      ${player.totalLoaned > 0 ? `<div class="seat-loan">借 ${player.totalLoaned}</div>` : ''}
-      ${player.roundBet > 0 ? `<div class="seat-bet">🪙 ${player.roundBet}</div>` : ''}
-      <div class="seat-role-badges">${roles}</div>
-      ${miniCards}
+      <div class="seat-info-row">
+        <span class="seat-name">${esc(player.name)}</span>
+        <span class="seat-chips">${player.chips}</span>
+        ${loanText}${betText}
+      </div>
       ${handBadge}
       ${winBadge}`;
     container.appendChild(div);
@@ -1535,7 +1936,8 @@ function renderActions(actions) {
   fold.disabled  = !actions.canFold;
   cc.disabled    = !actions.canCheck && !actions.canCall;
   raise.disabled = !actions.canRaise;
-  cc.innerHTML   = actions.canCheck ? '过牌' : `跟注<br><small>${actions.callAmount}</small>`;
+  raise.textContent = actions.isBet ? t('action_bet') : t('action_raise');
+  cc.innerHTML   = actions.canCheck ? t('action_check') : `${t('action_call')}<br><small>${actions.callAmount}</small>`;
 
   // Slider shows *additional* chips to put in (not the total "raise to" amount)
   // actions.minRaise = total raise-to amount; me.roundBet = already bet this round
@@ -1573,7 +1975,7 @@ function renderResult(state) {
   if (state.canBuyIn) {
     const btn = document.createElement('button');
     btn.id = 'btn-buyin-overlay';
-    btn.textContent = '买入筹码继续游戏';
+    btn.textContent = t('btn_buyin_continue');
     btn.addEventListener('click', () => { openBuyInModal(); });
     footer.appendChild(btn);
   }
@@ -1593,14 +1995,14 @@ function renderResult(state) {
     .join('、');
   const totalPot = state.lastResult.reduce((s, r) => s + r.potAmount, 0);
   document.getElementById('fold-win-title').textContent =
-    `🏆 ${winnerNames} 赢得 ${totalPot} 筹码`;
+    t('winner_banner', winnerNames, totalPot);
 
   const fwFooter = document.getElementById('fold-win-footer');
   fwFooter.innerHTML = '';
   if (state.canShowCards) {
     const btn = document.createElement('button');
     btn.id = 'btn-show-cards';
-    btn.textContent = '亮牌给大家看';
+    btn.textContent = t('btn_show_cards');
     btn.addEventListener('click', () => { socket.emit('show_cards'); banner.classList.remove('visible'); });
     fwFooter.appendChild(btn);
   }
@@ -1619,7 +2021,7 @@ function renderFinalLeaderboard(rankings) {
       <div class="lb-rank${i===0?' gold':''}">${medals[i]||i+1}</div>
       <div class="lb-name">${esc(p.name)}</div>
       <div class="lb-detail">
-        <div class="lb-chips">投入 ${p.invested} → 剩余 ${p.chips}</div>
+        <div class="lb-chips">${t('lb_detail', p.invested, p.chips)}</div>
         <div class="lb-profit ${profitClass}">${profitStr}</div>
       </div>
     </div>`;
@@ -1634,7 +2036,7 @@ function startCountdown(deadline) {
   if (!deadline) { el.textContent = ''; return; }
   const update = () => {
     const sec = Math.ceil(Math.max(0, deadline - Date.now()) / 1000);
-    el.textContent = sec > 0 ? `${sec}s 后开始下一局` : '';
+    el.textContent = sec > 0 ? t('countdown', sec) : '';
     if (sec <= 0) clearInterval(countdownInterval);
   };
   update();
@@ -1684,8 +2086,10 @@ document.getElementById('btn-check-call').addEventListener('click', () => {
 
 document.getElementById('btn-raise').addEventListener('click', () => {
   if (!gameState?.actions?.canRaise) return;
+  const isBet = gameState.actions.isBet;
   document.getElementById('raise-panel').style.display = 'flex';
   document.getElementById('action-row').style.display = 'none';
+  document.getElementById('btn-raise-confirm').textContent = isBet ? t('btn_raise_confirm_bet') : t('btn_raise_confirm_raise');
   const s = document.getElementById('raise-slider');
   s.min = raiseMin; s.max = raiseMax; s.value = raiseMin;
   document.getElementById('raise-amount-display').textContent = raiseMin;
@@ -1717,7 +2121,7 @@ document.getElementById('btn-raise-confirm').addEventListener('click', () => {
 });
 
 document.getElementById('btn-exit-game').addEventListener('click', () => {
-  if (!confirm('确定退出当前牌局？离开后筹码将不予保留。')) return;
+  if (!confirm(t('confirm_exit'))) return;
   socket.emit('leave_room', () => {
     clearSession();
     gameState = null;
@@ -1760,7 +2164,7 @@ function openBuyInModal() {
   slider.value = Math.min(1000, max);
   document.getElementById('buyin-modal-max-label').textContent = max.toLocaleString();
   document.getElementById('buyin-modal-loan').textContent =
-    state.myTotalLoaned > 0 ? `累计已借入 ${state.myTotalLoaned} 筹码` : '';
+    state.myTotalLoaned > 0 ? t('my_chips_loaned', state.myTotalLoaned) : '';
   _buyinSliderUpdate(slider);
   document.getElementById('buyin-modal').style.display = 'flex';
 }
@@ -1801,8 +2205,15 @@ document.getElementById('btn-final-exit').addEventListener('click', () => {
 
 // ── End game (host) ────────────────────────────────────────
 document.getElementById('btn-end-game').addEventListener('click', () => {
-  if (!confirm('确定结束游戏？本局打完后将进入最终结算。')) return;
+  if (!confirm(t('confirm_end'))) return;
   socket.emit('request_end_game', (res) => {
+    if (res?.error) showToast(res.error);
+  });
+});
+
+// ── Stand up button ─────────────────────────────────────────
+document.getElementById('btn-stand-up').addEventListener('click', () => {
+  socket.emit('stand_up', (res) => {
     if (res?.error) showToast(res.error);
   });
 });
@@ -1819,7 +2230,7 @@ function renderHistoryPanel() {
   const list = document.getElementById('history-list');
   const history = gameState?.handHistory || [];
   if (!history.length) {
-    list.innerHTML = '<div class="history-empty">暂无历史牌局</div>';
+    list.innerHTML = `<div class="history-empty">${t('history_empty')}</div>`;
     return;
   }
   list.innerHTML = history.map(entry => {
@@ -1828,14 +2239,14 @@ function renderHistoryPanel() {
       const profitStr   = w.netProfit > 0 ? `+${w.netProfit}` : String(w.netProfit);
       const holeHtml    = w.holeCards.length
         ? w.holeCards.map(c => histCardHtml(c, false)).join('')
-        : `<span class="hist-fold-label">${entry.wonByFold ? '未亮牌' : '—'}</span>`;
+        : `<span class="hist-fold-label">${entry.wonByFold ? t('hist_no_show') : t('hist_fold')}</span>`;
       const commHtml    = entry.communityCards.length
         ? entry.communityCards.map(c => histCardHtml(c, true)).join('')
-        : `<span class="hist-fold-label">无公牌</span>`;
+        : `<span class="hist-fold-label">${t('hist_no_comm')}</span>`;
       const handHtml    = w.handName
-        ? `<span class="hist-handname">${esc(w.handName)}</span>`
+        ? `<span class="hist-handname">${esc(t(w.handName))}</span>`
         : entry.wonByFold
-          ? `<span class="hist-fold-label">弃牌获胜</span>`
+          ? `<span class="hist-fold-label">${t('hist_fold_win')}</span>`
           : '';
       return `<div class="hist-row${entry.wonByFold ? ' fold-win' : ''}">
         <span class="hist-num">${wi === 0 ? '#' + entry.handNum : ''}</span>
@@ -1853,12 +2264,26 @@ function renderHistoryPanel() {
 document.getElementById('btn-history').addEventListener('click', () => {
   renderHistoryPanel();
   const n = gameState?.handHistory?.length || 0;
-  document.getElementById('history-header-title').textContent = n ? `历史牌局（${n} 局）` : '历史牌局';
+  document.getElementById('history-header-title').textContent = n ? t('history_title', n) : t('history_header');
   document.getElementById('history-panel').classList.add('visible');
 });
 document.getElementById('btn-close-history').addEventListener('click', () => {
   document.getElementById('history-panel').classList.remove('visible');
 });
+
+// ── i18n application ───────────────────────────────────────
+function applyI18n() {
+  document.title = t('page_title');
+  const appTitleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (appTitleMeta) appTitleMeta.content = t('page_title');
+  document.documentElement.lang = window.GAME_LANG || 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (el.tagName === 'INPUT' && 'placeholder' in el) el.placeholder = t(k);
+    else el.textContent = t(k);
+  });
+}
+applyI18n();
 
 // ── Init ───────────────────────────────────────────────────
 const savedName = localStorage.getItem('poker_name');

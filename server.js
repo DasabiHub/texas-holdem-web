@@ -7,10 +7,26 @@ const path = require('path');
 const crypto = require('crypto');
 const PokerGame = require('./game/PokerGame');
 
+const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+const LANG = process.env.GAME_LANG || 'en';
+const MSG = {
+  en: { roomNotFound: 'Room not found', sessionExpired: 'Session expired',
+        roomDissolved: 'Room closed', invalidSeat: 'Invalid seat' },
+  zh: { roomNotFound: '房间不存在', sessionExpired: '会话已过期',
+        roomDissolved: '房间已解散', invalidSeat: '无效座位' },
+}[LANG] || {
+  roomNotFound: 'Room not found', sessionExpired: 'Session expired',
+  roomDissolved: 'Room closed', invalidSeat: 'Invalid seat'
+};
+
+app.get('/', (req, res) => {
+  const html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  res.send(html.replace('</head>', `<script>window.GAME_LANG='${LANG}'</script></head>`));
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
@@ -33,8 +49,8 @@ io.on('connection', (socket) => {
   socket.on('get_rooms', () => {
     const list = [];
     for (const [code, game] of rooms) {
-      const total = game.players.length + game.pendingPlayers.length;
-      if (total === 0 || total >= 8) continue;
+      const total = game.players.length + game.pendingPlayers.length + game.standingPlayers.length;
+      if (total === 0 || total >= 9) continue;
       const host = game.players.find(p => p.id === game.hostId);
       list.push({
         code,
@@ -70,7 +86,7 @@ io.on('connection', (socket) => {
   // ── Join room ────────────────────────────────────────────
   socket.on('join_room', ({ name, roomCode }, cb) => {
     const game = rooms.get(roomCode);
-    if (!game) return cb({ error: '房间不存在' });
+    if (!game) return cb({ error: MSG.roomNotFound });
 
     const pid = crypto.randomUUID();
     let spectator = false;
@@ -80,7 +96,7 @@ io.on('connection', (socket) => {
       const res = game.addPlayer(pid, name, socket.id);
       if (res.error) return cb({ error: res.error });
     } else {
-      // Mid-game: join as pending spectator, enter at next hand
+      // Mid-game: join as standing spectator, must choose seat before entering
       const res = game.addPendingPlayer(pid, name, socket.id);
       if (res.error) return cb({ error: res.error });
       spectator = true;
@@ -102,13 +118,13 @@ io.on('connection', (socket) => {
   socket.on('rejoin_room', ({ playerId, roomCode }, cb) => {
     const session = sessions.get(playerId);
     if (!session || session.roomCode !== roomCode) {
-      return cb({ error: '会话已过期' });
+      return cb({ error: MSG.sessionExpired });
     }
 
     const game = rooms.get(roomCode);
     if (!game) {
       sessions.delete(playerId);
-      return cb({ error: '房间已解散' });
+      return cb({ error: MSG.roomDissolved });
     }
 
     // Cancel the pending removal timer
@@ -117,9 +133,10 @@ io.on('connection', (socket) => {
       session.disconnectTimer = null;
     }
 
-    // Restore socket binding — check active, pending, and broke spectator pools
+    // Restore socket binding — check active, pending, standing, and broke spectator pools
     const player = game.players.find(p => p.id === playerId)
                 || game.pendingPlayers.find(p => p.id === playerId)
+                || game.standingPlayers.find(p => p.id === playerId)
                 || game.brokeSpectators.find(p => p.id === playerId);
     if (player) {
       player.socketId = socket.id;
@@ -169,7 +186,7 @@ io.on('connection', (socket) => {
   // ── Start game ───────────────────────────────────────────
   socket.on('start_game', (cb) => {
     const game = rooms.get(curRoom);
-    if (!game) return cb?.({ error: '房间不存在' });
+    if (!game) return cb?.({ error: MSG.roomNotFound });
     const res = game.startGame(curPlayer);
     if (res.error) return cb?.({ error: res.error });
     cb?.({ ok: true });
@@ -178,7 +195,7 @@ io.on('connection', (socket) => {
   // ── Show cards (winner voluntarily reveals after everyone folds) ─────────
   socket.on('show_cards', (cb) => {
     const game = rooms.get(curRoom);
-    if (!game) return cb?.({ error: '房间不存在' });
+    if (!game) return cb?.({ error: MSG.roomNotFound });
     const res = game.handleShowCards(curPlayer);
     if (res?.error) cb?.({ error: res.error });
     else cb?.({ ok: true });
@@ -187,7 +204,7 @@ io.on('connection', (socket) => {
   // ── Room configuration (host only, before game starts) ──────────────────────
   socket.on('configure_room', ({ maxBuyIn }, cb) => {
     const game = rooms.get(curRoom);
-    if (!game) return cb?.({ error: '房间不存在' });
+    if (!game) return cb?.({ error: MSG.roomNotFound });
     const res = game.configure(curPlayer, { maxBuyIn });
     if (res?.error) return cb?.({ error: res.error });
     io.to(curRoom).emit('room_update', game._publicRoomInfo());
@@ -198,16 +215,39 @@ io.on('connection', (socket) => {
   socket.on('buy_in', (data, cb) => {
     if (typeof data === 'function') { cb = data; data = {}; }
     const game = rooms.get(curRoom);
-    if (!game) return cb?.({ error: '房间不存在' });
+    if (!game) return cb?.({ error: MSG.roomNotFound });
     const res = game.buyIn(curPlayer, data?.amount);
     if (res?.error) cb?.({ error: res.error });
     else cb?.({ ok: true });
   });
 
+  // ── Sit down (choose a seat) ──────────────────────────────────────────────
+  socket.on('sit_down', (data, cb) => {
+    if (typeof data === 'function') { cb = data; data = {}; }
+    const game = rooms.get(curRoom);
+    if (!game) return cb?.({ error: MSG.roomNotFound });
+    const seatIndex = parseInt(data?.seatIndex);
+    if (isNaN(seatIndex)) return cb?.({ error: MSG.invalidSeat });
+    const res = game.sitDown(curPlayer, seatIndex);
+    if (res?.error) return cb?.({ error: res.error });
+    io.to(curRoom).emit('room_update', game._publicRoomInfo());
+    cb?.({ ok: true });
+  });
+
+  // ── Stand up (leave seat) ─────────────────────────────────────────────────
+  socket.on('stand_up', (cb) => {
+    const game = rooms.get(curRoom);
+    if (!game) return cb?.({ error: MSG.roomNotFound });
+    const res = game.standUp(curPlayer);
+    if (res?.error) return cb?.({ error: res.error });
+    io.to(curRoom).emit('room_update', game._publicRoomInfo());
+    cb?.({ ok: true });
+  });
+
   // ── Request end game (host only) ──────────────────────────────────────────
   socket.on('request_end_game', (cb) => {
     const game = rooms.get(curRoom);
-    if (!game) return cb?.({ error: '房间不存在' });
+    if (!game) return cb?.({ error: MSG.roomNotFound });
     const res = game.requestEndGame(curPlayer);
     if (res?.error) cb?.({ error: res.error });
     else cb?.({ ok: true });
@@ -249,7 +289,8 @@ io.on('connection', (socket) => {
             io.to(curRoom).emit('room_update', game._publicRoomInfo());
           }
         }
-        if (game.players.filter(p => !p.disconnected).length === 0) rooms.delete(curRoom);
+        const remaining = game.players.filter(p => !p.disconnected);
+        if (remaining.length === 0) rooms.delete(curRoom);
       }
       // Mid-game: player stays in game.players, auto-folded each hand,
       // bleeds out from blinds. Room cleans up naturally when all leave.
