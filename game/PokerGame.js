@@ -907,6 +907,7 @@ class PokerGame {
 
   _broadcastState() {
     for (const p of this.players) {
+      if (p.permanentlyLeft) continue; // player already left, don't send them state
       const sock = this.io.sockets.sockets.get(p.socketId);
       if (sock) sock.emit('game_state', this._stateFor(p.id));
     }
