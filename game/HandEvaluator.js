@@ -65,22 +65,23 @@ function compareEvals(a, b) {
 }
 
 function bestHand(cards) {
-  // cards: 5-7 cards, find best 5-card hand
-  if (cards.length === 5) {
+  // cards: 5-7 cards, find best 5-card hand by trying all C(n,5) combinations
+  const n = cards.length;
+  if (n === 5) {
     const ev = evaluateFive(cards);
     return { eval: ev, name: HAND_NAMES[ev[0]], cards };
   }
   let best = null;
-  const n = cards.length;
-  for (let i = 0; i < n - 1; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const five = cards.filter((_, idx) => idx !== i && idx !== j);
-      const ev = evaluateFive(five);
-      if (!best || compareEvals(ev, best.eval) > 0) {
-        best = { eval: ev, name: HAND_NAMES[ev[0]], cards: five };
-      }
-    }
-  }
+  for (let i = 0; i < n - 4; i++)
+    for (let j = i + 1; j < n - 3; j++)
+      for (let k = j + 1; k < n - 2; k++)
+        for (let l = k + 1; l < n - 1; l++)
+          for (let m = l + 1; m < n; m++) {
+            const five = [cards[i], cards[j], cards[k], cards[l], cards[m]];
+            const ev = evaluateFive(five);
+            if (!best || compareEvals(ev, best.eval) > 0)
+              best = { eval: ev, name: HAND_NAMES[ev[0]], cards: five };
+          }
   return best;
 }
 

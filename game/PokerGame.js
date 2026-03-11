@@ -950,7 +950,12 @@ class PokerGame {
         ...(() => {
           const reveal = p.id === playerId || this.revealAll || !!p.showedCards;
           const holeCards = reveal ? p.holeCards : p.holeCards.map(() => null);
-          if (reveal && isShowdown && !p.folded && p.holeCards.length > 0) {
+          // Show hand name: for own cards from flop onwards; for others only at real showdown
+          const showHandName = !p.folded && p.holeCards.length > 0 && (
+            (p.id === playerId && this.communityCards.length >= 3) ||
+            (isShowdown && this.revealAll)
+          );
+          if (reveal && showHandName) {
             const h = bestHand([...p.holeCards, ...this.communityCards]);
             return { holeCards, handName: h.name, bestCards: h.cards };
           }

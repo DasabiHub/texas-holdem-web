@@ -222,11 +222,11 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   border-top:1px solid rgba(255,255,255,.08);
   position:relative
 }
-#my-area{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%}
-#my-info-row{display:flex;justify-content:space-between;width:100%;padding:0 4px}
-#my-chips{font-size:13px;color:#FFD700;font-weight:700}
-#my-hand-name{font-size:12px;color:rgba(255,255,255,.6)}
-#my-cards-row{display:flex;gap:10px;min-height:76px;align-items:center}
+#my-area{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;width:100%}
+#my-info-row{display:none}
+#my-chips{font-size:13px;color:#FFD700;font-weight:700;flex-shrink:0;min-width:60px;text-align:right}
+#my-hand-name{font-size:12px;color:rgba(255,255,255,.6);flex-shrink:0;min-width:60px;text-align:left}
+#my-cards-row{display:flex;gap:10px;min-height:76px;align-items:center;flex-shrink:0}
 #action-row{display:flex;align-items:center;justify-content:center;gap:14px;width:100%}
 .action-btn{
   border:none;border-radius:50%;cursor:pointer;
@@ -236,26 +236,33 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 }
 .action-btn:active{transform:scale(.94)}
 .action-btn:disabled{opacity:.25;pointer-events:none}
-#btn-fold{width:68px;height:68px;background:linear-gradient(135deg,#c62828,#b71c1c);font-size:14px}
-#btn-check-call{width:80px;height:80px;background:linear-gradient(135deg,#1976D2,#1565C0);font-size:12px;text-align:center}
-#btn-raise{width:68px;height:68px;background:linear-gradient(135deg,#2e7d32,#1b5e37);font-size:14px}
+#btn-fold{width:82px;height:82px;background:linear-gradient(135deg,#c62828,#b71c1c);font-size:15px}
+#btn-check-call{width:96px;height:96px;background:linear-gradient(135deg,#1976D2,#1565C0);font-size:13px;text-align:center}
+#btn-raise{width:82px;height:82px;background:linear-gradient(135deg,#2e7d32,#1b5e37);font-size:15px}
 #raise-panel{
-  width:100%;height:80px;box-sizing:border-box;
+  width:100%;height:96px;box-sizing:border-box;
   background:rgba(0,0,0,.4);border-radius:14px;
   padding:8px 12px;display:flex;flex-direction:row;gap:12px;align-items:center;
   overflow:hidden
 }
-#raise-left{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
-#raise-amount-display{text-align:center;font-size:28px;font-weight:800;color:#FFD700}
+#raise-left{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;align-self:flex-start;padding-top:3px}
+#raise-amount-display{text-align:center;font-size:20px;font-weight:800;color:#FFD700}
 #raise-slider{
-  width:100%;height:4px;-webkit-appearance:none;appearance:none;
+  width:78%;margin:0 auto;margin-bottom:10px;display:block;height:4px;-webkit-appearance:none;appearance:none;
   background:#333;border-radius:2px;outline:none;cursor:pointer
 }
 #raise-slider::-webkit-slider-thumb{
-  -webkit-appearance:none;width:22px;height:22px;
+  -webkit-appearance:none;width:20px;height:20px;
   border-radius:50%;background:#4CAF50;cursor:pointer;
   box-shadow:0 2px 6px rgba(0,0,0,.4)
 }
+#raise-step-btns{display:flex;gap:6px;justify-content:center}
+.raise-step-btn{
+  padding:3px 13px;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.2);border-radius:7px;
+  color:#fff;font-size:12px;font-weight:700;cursor:pointer
+}
+.raise-step-btn:active{background:rgba(255,255,255,.25)}
 #raise-right{display:flex;flex-direction:column;gap:6px;align-items:stretch}
 .raise-presets{display:flex;gap:5px;justify-content:center}
 .preset-btn{
@@ -747,11 +754,9 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   <div id="pending-end-notice" data-i18n="pending_end">Host has requested to end the game — settling after this hand</div>
   <div id="bottom-panel">
     <div id="my-area">
-      <div id="my-info-row">
-        <div id="my-chips"></div>
-        <div id="my-hand-name"></div>
-      </div>
+      <div id="my-chips"></div>
       <div id="my-cards-row"></div>
+      <div id="my-hand-name"></div>
     </div>
     <div id="action-row">
       <button class="action-btn" id="btn-fold" disabled data-i18n="btn_fold">Fold</button>
@@ -762,6 +767,10 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
       <div id="raise-left">
         <div id="raise-amount-display">0</div>
         <input type="range" id="raise-slider" min="0" max="100" value="0">
+        <div id="raise-step-btns">
+          <button class="raise-step-btn" id="btn-raise-minus">-100</button>
+          <button class="raise-step-btn" id="btn-raise-plus">+100</button>
+        </div>
       </div>
       <div id="raise-right">
         <div class="raise-presets">
@@ -2111,6 +2120,20 @@ document.getElementById('btn-raise').addEventListener('click', () => {
 
 document.getElementById('raise-slider').addEventListener('input', function() {
   document.getElementById('raise-amount-display').textContent = this.value;
+});
+
+document.getElementById('btn-raise-minus').addEventListener('click', () => {
+  const s = document.getElementById('raise-slider');
+  const val = Math.max(parseInt(s.min), parseInt(s.value) - 100);
+  s.value = val;
+  document.getElementById('raise-amount-display').textContent = val;
+});
+
+document.getElementById('btn-raise-plus').addEventListener('click', () => {
+  const s = document.getElementById('raise-slider');
+  const val = Math.min(parseInt(s.max), parseInt(s.value) + 100);
+  s.value = val;
+  document.getElementById('raise-amount-display').textContent = val;
 });
 
 document.querySelectorAll('.preset-btn').forEach(btn => {
