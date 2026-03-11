@@ -52,6 +52,8 @@ class PokerGame {
     this.seats = new Array(9).fill(null); // seats[i] = playerId or null
     this._handStarting = false; // guard against concurrent _startHand() calls
     this._nextHandTimer = null; // single scheduled timer for next hand
+    this.kickedPlayers = []; // players removed due to long disconnect while standing
+    this.onPlayerAutoStoodUp = null; // callback(playerId) when player auto-moved to standing due to disconnect
   }
 
   // ── Player management ──────────────────────────────────────────────────────
@@ -233,7 +235,7 @@ class PokerGame {
     }
   }
 
-  // Called on temporary disconnect — player stays in game (auto-fold each hand)
+  // Called on temporary disconnect — mark disconnected but let the turn timer handle auto-action
   markDisconnected(id) {
     // Broke spectators: just remove them silently
     const bi = this.brokeSpectators.findIndex(p => p.id === id);
@@ -262,13 +264,9 @@ class PokerGame {
     const p = this._player(id);
     if (!p || p.permanentlyLeft) return;
     p.disconnected = true;
-    if (this.phase !== PHASE.WAITING) {
-      p.folded = true;
-      this.playersToAct = this.playersToAct.filter(idx => this.players[idx]?.id !== id);
-      const cur = this.players[this.currentIdx];
-      if (cur && cur.id === id) this._checkAdvance();
-      else this._broadcastState();
-    }
+    // Don't fold immediately — let the 30s turn timer auto-act for them.
+    // Just broadcast so others see the disconnected indicator.
+    this._broadcastState();
   }
 
   updateSocket(id, socketId) {
@@ -310,6 +308,17 @@ class PokerGame {
     if (this._handStarting) return;
     this._handStarting = true;
 
+    // Apply pending mid-game config changes
+    if (this.pendingBigBlind) {
+      this.bigBlind = this.pendingBigBlind;
+      this.smallBlind = Math.max(1, Math.floor(this.pendingBigBlind / 2));
+      this.pendingBigBlind = null;
+    }
+    if (this.pendingMaxBuyIn) {
+      this.maxBuyIn = this.pendingMaxBuyIn;
+      this.pendingMaxBuyIn = null;
+    }
+
     this.deck = new Deck();
     this.communityCards = [];
     this.pot = 0;
@@ -332,6 +341,20 @@ class PokerGame {
       this.standingPlayers.push(p);
     }
     this.players = this.players.filter(p => !standingUp.includes(p));
+
+    // Handle disconnected players who were auto-folded: move them to standingPlayers
+    const autoStoodUp = this.players.filter(p => p.pendingStandUpDisconnected);
+    for (const p of autoStoodUp) {
+      if (p.seatIndex !== null) {
+        this.seats[p.seatIndex] = null;
+        p.seatIndex = null;
+      }
+      p.pendingStandUpDisconnected = false;
+      this.standingPlayers.push(p);
+      // Notify server.js to start the 5-minute kick timer
+      if (this.onPlayerAutoStoodUp) this.onPlayerAutoStoodUp(p.id);
+    }
+    this.players = this.players.filter(p => !autoStoodUp.includes(p));
 
     // Absorb pending players (who have a seat) into the active roster
     const readyPending = this.pendingPlayers.filter(p => p.seatIndex !== null);
@@ -389,7 +412,7 @@ class PokerGame {
       p.holeCards = [];
       p.totalBet = 0;
       p.roundBet = 0;
-      p.folded = !!p.disconnected; // auto-fold disconnected players
+      p.folded = false; // disconnected players start unfolded — timer handles their auto-action
       p.allIn = false;
       p.lastAction = null;
       p.showedCards = false;
@@ -547,7 +570,8 @@ class PokerGame {
       const idx = (startIdx + i) % n;
       if (excludeIdxs.includes(idx)) continue;
       const p = this.players[idx];
-      if (!p.folded && !p.allIn && !p.disconnected) {
+      // Include disconnected players — the 30s timer will auto-act for them
+      if (!p.folded && !p.allIn) {
         this.playersToAct.push(idx);
       }
     }
@@ -564,7 +588,8 @@ class PokerGame {
   }
 
   _checkAdvance() {
-    const active = this.players.filter(p => !p.folded && !p.disconnected);
+    // Count all non-folded players (including disconnected — they're still in the hand)
+    const active = this.players.filter(p => !p.folded);
 
     // Only one player left – they win
     if (active.length <= 1) {
@@ -605,7 +630,8 @@ class PokerGame {
       const offset = 1;
       for (let i = offset; i < n + offset; i++) {
         const p = this.players[(startIdx + i) % n];
-        if (!p.folded && !p.disconnected) return (startIdx + i) % n;
+        // Include disconnected players in action order (timer handles them)
+        if (!p.folded) return (startIdx + i) % n;
       }
       return -1;
     };
@@ -634,7 +660,7 @@ class PokerGame {
     // If no meaningful betting can occur, run out remaining streets automatically.
     // Cases: (a) everyone is all-in → playersToAct empty,
     //        (b) one player has chips but all others are all-in → they have no one to bet against
-    const hasAllIn = this.players.some(p => !p.folded && !p.disconnected && p.allIn);
+    const hasAllIn = this.players.some(p => !p.folded && p.allIn);
     if (this.playersToAct.length === 0 || (this.playersToAct.length === 1 && hasAllIn)) {
       // Clear current player so no action buttons are shown during the auto-run delay
       this.playersToAct = [];
@@ -780,12 +806,65 @@ class PokerGame {
     }, 5500);
   }
 
+  // Remove a disconnected standing player from the room (but keep in final leaderboard)
+  kickPlayer(playerId) {
+    const si = this.standingPlayers.findIndex(p => p.id === playerId);
+    if (si >= 0) {
+      const p = this.standingPlayers[si];
+      if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
+      this.standingPlayers.splice(si, 1);
+      this.kickedPlayers.push(p);
+      this._broadcastState();
+      return;
+    }
+    // Safety: also handle if still in pending/active pools
+    const pi = this.pendingPlayers.findIndex(p => p.id === playerId);
+    if (pi >= 0) {
+      const p = this.pendingPlayers[pi];
+      if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
+      this.pendingPlayers.splice(pi, 1);
+      this.kickedPlayers.push(p);
+      this._broadcastState();
+    }
+  }
+
   configure(hostId, config) {
     if (hostId !== this.hostId) return { error: '只有房主才能设置' };
-    if (this.phase !== PHASE.WAITING) return { error: '游戏已开始，无法修改设置' };
-    if (config.maxBuyIn !== undefined) {
-      const v = parseInt(config.maxBuyIn);
-      if (!isNaN(v) && v >= 100) this.maxBuyIn = v;
+
+    if (this.phase === PHASE.WAITING) {
+      // Waiting room: all settings apply immediately
+      if (config.startingChips !== undefined) {
+        const v = parseInt(config.startingChips);
+        if (!isNaN(v) && v >= 100) {
+          this.startingChips = v;
+          for (const p of [...this.players, ...this.pendingPlayers, ...this.standingPlayers]) {
+            p.chips = v;
+          }
+          if (this.maxBuyIn < v) this.maxBuyIn = v;
+        }
+      }
+      if (config.bigBlind !== undefined) {
+        const v = parseInt(config.bigBlind);
+        if (!isNaN(v) && v >= 2) {
+          this.bigBlind = v;
+          this.smallBlind = Math.max(1, Math.floor(v / 2));
+          this.minRaise = v;
+        }
+      }
+      if (config.maxBuyIn !== undefined) {
+        const v = parseInt(config.maxBuyIn);
+        if (!isNaN(v) && v >= 100) this.maxBuyIn = v;
+      }
+    } else {
+      // Mid-game: blind and buy-in changes take effect next hand
+      if (config.bigBlind !== undefined) {
+        const v = parseInt(config.bigBlind);
+        if (!isNaN(v) && v >= 2) this.pendingBigBlind = v;
+      }
+      if (config.maxBuyIn !== undefined) {
+        const v = parseInt(config.maxBuyIn);
+        if (!isNaN(v) && v >= 100) this.pendingMaxBuyIn = v;
+      }
     }
     return { ok: true };
   }
@@ -848,7 +927,7 @@ class PokerGame {
     this.phase = 'ended';
     this.timerDeadline = null;
     clearTimeout(this.timer);
-    const allPlayers = [...this.players, ...this.brokeSpectators, ...this.pendingPlayers, ...this.standingPlayers];
+    const allPlayers = [...this.players, ...this.brokeSpectators, ...this.pendingPlayers, ...this.standingPlayers, ...this.kickedPlayers];
     this.finalRankings = allPlayers
       .map(p => ({
         id: p.id,
@@ -894,11 +973,17 @@ class PokerGame {
     this.timer = setTimeout(() => {
       const p = this.players[this.currentIdx];
       if (!p) return;
+      const wasDisconnected = !!p.disconnected;
       // Auto-action: check if possible, else fold
       if (p.roundBet >= this.currentBet) {
         this.handleAction(p.id, 'check', 0);
       } else {
         this.handleAction(p.id, 'fold', 0);
+        // If auto-folded while disconnected, schedule this player to stand up at next hand start
+        if (wasDisconnected) {
+          const pp = this._player(p.id);
+          if (pp) pp.pendingStandUpDisconnected = true;
+        }
       }
     }, TURN_TIME * 1000);
   }
@@ -1049,6 +1134,10 @@ class PokerGame {
       canShowCards: this.showCardsWinnerId === playerId,
       revealAll: this.revealAll,
       maxBuyIn: this.maxBuyIn,
+      smallBlind: this.smallBlind,
+      bigBlind: this.bigBlind,
+      pendingBigBlind: this.pendingBigBlind || null,
+      pendingMaxBuyIn: this.pendingMaxBuyIn || null,
       pendingEnd: this.pendingEnd,
       finalRankings: this.finalRankings,
       waitingForBuyIn: this.waitingForBuyIn,
@@ -1057,7 +1146,7 @@ class PokerGame {
         isBrokeSpectator ||
         (!!myPlayer && myPlayer.chips === 0 && isShowdown)
       ),
-      isHost: myPlayer?.id === this.hostId || false,
+      isHost: playerId === this.hostId,
       nextHandAt: this.nextHandAt,
       handHistory: this.handHistory,
       seats: seatsInfo,
@@ -1072,12 +1161,15 @@ class PokerGame {
       roomCode: this.roomCode,
       hostId: this.hostId,
       phase: this.phase,
+      startingChips: this.startingChips,
+      smallBlind: this.smallBlind,
+      bigBlind: this.bigBlind,
+      maxBuyIn: this.maxBuyIn,
       playerCount: this.players.length + this.pendingPlayers.length + this.standingPlayers.length,
       players: this.players.map(p => ({ id: p.id, name: p.name, chips: p.chips, seatIndex: p.seatIndex })),
       pendingCount: this.pendingPlayers.length,
       pendingPlayers: this.pendingPlayers.map(p => ({ id: p.id, name: p.name, seatIndex: p.seatIndex })),
       standingPlayers: this.standingPlayers.map(p => ({ id: p.id, name: p.name, chips: p.chips })),
-      maxBuyIn: this.maxBuyIn,
       seats: this.seats.map((pid, i) => {
         if (!pid) return { seatIndex: i, playerId: null, name: null };
         const allP = [...this.players, ...this.pendingPlayers, ...this.standingPlayers, ...this.brokeSpectators];

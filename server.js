@@ -54,6 +54,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const rooms = new Map();
 // sessions: playerId -> { roomCode, disconnectTimer }
 const sessions = new Map();
+// kickTimers: playerId -> setTimeout handle (5-min kick after standing while disconnected)
+const kickTimers = new Map();
 
 const GRACE_MS = 3 * 60 * 1000; // 3-minute grace period for reconnection
 
@@ -61,6 +63,32 @@ function genCode() {
   let code;
   do { code = String(Math.floor(Math.random() * 1000000)).padStart(6, '0'); } while (rooms.has(code));
   return code;
+}
+
+const KICK_MS = 5 * 60 * 1000; // 5-minute kick after standing while disconnected
+
+function kickDisconnectedPlayer(playerId, roomCode) {
+  kickTimers.delete(playerId);
+  const game = rooms.get(roomCode);
+  if (!game) { sessions.delete(playerId); return; }
+
+  // Only kick if still standing and still disconnected
+  const standingP = game.standingPlayers.find(p => p.id === playerId);
+  if (!standingP || !standingP.disconnected) return; // player reconnected or not standing
+
+  // Transfer host to next connected player
+  if (game.hostId === playerId) {
+    const candidates = [...game.players, ...game.pendingPlayers, ...game.standingPlayers]
+      .filter(p => p.id !== playerId && !p.disconnected);
+    if (candidates.length > 0) {
+      game.hostId = candidates[0].id;
+      io.to(roomCode).emit('host_changed', { newHostId: game.hostId, newHostName: candidates[0].name });
+    }
+  }
+
+  game.kickPlayer(playerId);
+  sessions.delete(playerId);
+  io.to(roomCode).emit('player_kicked', { playerId, name: standingP.name });
 }
 
 io.on('connection', (socket) => {
@@ -89,6 +117,12 @@ io.on('connection', (socket) => {
     const code = genCode();
     const game = new PokerGame(code, io);
     rooms.set(code, game);
+
+    // Set up callback: when a player is auto-stood-up due to disconnect, start 5-min kick timer
+    game.onPlayerAutoStoodUp = (playerId) => {
+      clearTimeout(kickTimers.get(playerId));
+      kickTimers.set(playerId, setTimeout(() => kickDisconnectedPlayer(playerId, code), KICK_MS));
+    };
 
     // Use a persistent UUID, not socket.id
     const pid = crypto.randomUUID();
@@ -155,6 +189,12 @@ io.on('connection', (socket) => {
       session.disconnectTimer = null;
     }
 
+    // Cancel any pending standing kick timer
+    if (kickTimers.has(playerId)) {
+      clearTimeout(kickTimers.get(playerId));
+      kickTimers.delete(playerId);
+    }
+
     // Restore socket binding — check active, pending, standing, and broke spectator pools
     const player = game.players.find(p => p.id === playerId)
                 || game.pendingPlayers.find(p => p.id === playerId)
@@ -184,6 +224,11 @@ io.on('connection', (socket) => {
     if (!curRoom || !curPlayer) return cb?.({ ok: true });
     const session = sessions.get(curPlayer);
     if (session?.disconnectTimer) clearTimeout(session.disconnectTimer);
+    // Cancel kick timer if leaving voluntarily
+    if (kickTimers.has(curPlayer)) {
+      clearTimeout(kickTimers.get(curPlayer));
+      kickTimers.delete(curPlayer);
+    }
     sessions.delete(curPlayer);
 
     const game = rooms.get(curRoom);
@@ -224,10 +269,11 @@ io.on('connection', (socket) => {
   });
 
   // ── Room configuration (host only, before game starts) ──────────────────────
-  socket.on('configure_room', ({ maxBuyIn }, cb) => {
+  socket.on('configure_room', (data, cb) => {
     const game = rooms.get(curRoom);
     if (!game) return cb?.({ error: MSG.roomNotFound });
-    const res = game.configure(curPlayer, { maxBuyIn });
+    const { startingChips, bigBlind, maxBuyIn } = data || {};
+    const res = game.configure(curPlayer, { startingChips, bigBlind, maxBuyIn });
     if (res?.error) return cb?.({ error: res.error });
     io.to(curRoom).emit('room_update', game._publicRoomInfo());
     cb?.({ ok: true });
@@ -293,12 +339,17 @@ io.on('connection', (socket) => {
     const game = rooms.get(curRoom);
     if (!game) return;
 
-    // Temporary disconnect: fold them now but keep their seat & chips
+    // Mark disconnected: for active players, just sets p.disconnected=true so the 30s
+    // turn timer handles auto-action. Standing/pending/broke players are removed silently.
     game.markDisconnected(curPlayer);
 
-    // Grace period: if they reconnect within 3 min, session is restored
-    // If not, clean up session (player stays in game auto-folding until chips run out)
+    // Grace period: if they reconnect within 3 min, session is restored.
+    // For mid-game players, the standing kick timer (5 min) handles final cleanup.
     session.disconnectTimer = setTimeout(() => {
+      // Don't delete session if a standing kick timer is still pending
+      // (player needs to be able to reconnect until kick fires)
+      if (kickTimers.has(curPlayer)) return;
+
       sessions.delete(curPlayer);
 
       // For waiting room: actually remove the player slot
@@ -314,8 +365,7 @@ io.on('connection', (socket) => {
         const remaining = game.players.filter(p => !p.disconnected);
         if (remaining.length === 0) rooms.delete(curRoom);
       }
-      // Mid-game: player stays in game.players, auto-folded each hand,
-      // bleeds out from blinds. Room cleans up naturally when all leave.
+      // Mid-game: player stays connected to game logic; standing kick timer handles final removal.
     }, GRACE_MS);
   });
 });
