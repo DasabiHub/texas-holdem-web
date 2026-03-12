@@ -103,6 +103,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 #pot-display{background:rgba(0,0,0,.55);padding:3px 12px;border-radius:12px;font-size:13px;font-weight:700;color:#FFD700}
 #phase-badge{font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px}
 #next-hand-countdown{font-size:11px;color:rgba(255,255,255,.45);margin-top:2px;min-height:14px;text-align:center}
+#waiting-players-notice{font-size:11px;color:rgba(255,255,255,.35);letter-spacing:.4px;text-align:center;display:none}
 .card{
   width:36px;height:52px;background:#fff;border-radius:5px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -833,6 +834,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
       <div id="pot-display"></div>
       <div id="table-blind-info"></div>
       <div id="next-hand-countdown"></div>
+      <div id="waiting-players-notice"></div>
     </div>
     <div id="seats"></div>
   </div>
@@ -1067,6 +1069,8 @@ const TRANSLATIONS = {
     toast_refreshing:'↻ Refreshing...', toast_refresh:'↻ Refresh',
     confirm_exit:'Exit the game? Your chips will not be saved.',
     confirm_end:'End the game? Final standings will be shown after this hand.',
+    confirm_end_now:'End the game? Final standings will be shown immediately.',
+    waiting_for_players:'Waiting for players to join...',
     spectator_buyin_hint:'Buy in to join next hand',
     spectator_waiting_hint:'Will join automatically next hand',
     spectator_choose_hint:'Click an empty seat to join next hand',
@@ -1148,6 +1152,8 @@ const TRANSLATIONS = {
     toast_refreshing:'↻ 刷新中…', toast_refresh:'↻ 刷新',
     confirm_exit:'确定退出当前牌局？离开后筹码将不予保留。',
     confirm_end:'确定结束游戏？本局打完后将进入最终结算。',
+    confirm_end_now:'确定结束游戏？将立即进入最终结算。',
+    waiting_for_players:'等待其他玩家入座...',
     spectator_buyin_hint:'买入筹码后可加入下一局',
     spectator_waiting_hint:'下一局开始后自动上桌',
     spectator_choose_hint:'请点击空位入座，下一局参与游戏',
@@ -1946,6 +1952,13 @@ function renderGame(state) {
   document.getElementById('pot-display').textContent = state.pot > 0 ? t('pot', state.pot) : '';
   const sb = state.smallBlind || 0, bb = state.bigBlind || 0;
   document.getElementById('table-blind-info').textContent = sb && bb ? `SB ${sb} / BB ${bb}` : '';
+  const waitingNotice = document.getElementById('waiting-players-notice');
+  if (state.waitingForBuyIn) {
+    waitingNotice.textContent = t('waiting_for_players');
+    waitingNotice.style.display = 'block';
+  } else {
+    waitingNotice.style.display = 'none';
+  }
 
   // Community cards with deal animation for newly added cards
   const prevCount = prevCommunityCount;
@@ -2516,7 +2529,8 @@ document.getElementById('gsp-max-buyin').addEventListener('change', function() {
 });
 
 document.getElementById('btn-end-game-panel').addEventListener('click', () => {
-  if (!confirm(t('confirm_end'))) return;
+  const msgKey = gameState?.waitingForBuyIn ? 'confirm_end_now' : 'confirm_end';
+  if (!confirm(t(msgKey))) return;
   gameSettingsPanel.style.display = 'none';
   socket.emit('request_end_game', (res) => {
     if (res?.error) showToast(res.error);

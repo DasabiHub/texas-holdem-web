@@ -1,5 +1,7 @@
 'use strict';
 
+const { randomInt } = require('crypto');
+
 const SUITS = ['s', 'h', 'd', 'c']; // spades, hearts, diamonds, clubs
 const RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // 11=J, 12=Q, 13=K, 14=A
 
@@ -21,7 +23,7 @@ class Deck {
 
   shuffle() {
     for (let i = this.cards.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = randomInt(0, i + 1);
       [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
     }
   }

@@ -53,6 +53,7 @@ class PokerGame {
     this._handStarting = false; // guard against concurrent _startHand() calls
     this._nextHandTimer = null; // single scheduled timer for next hand
     this.kickedPlayers = []; // players removed due to long disconnect while standing
+    this.leftPlayers = []; // players who voluntarily left or disconnected mid-game (for final leaderboard)
     this.onPlayerAutoStoodUp = null; // callback(playerId) when player auto-moved to standing due to disconnect
   }
 
@@ -197,6 +198,7 @@ class PokerGame {
       const p = this.brokeSpectators[bi];
       if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
       this.brokeSpectators.splice(bi, 1);
+      if (!this.leftPlayers.find(q => q.id === p.id)) this.leftPlayers.push(p);
       this._broadcastState(); return;
     }
 
@@ -206,6 +208,7 @@ class PokerGame {
       const p = this.standingPlayers[si];
       if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
       this.standingPlayers.splice(si, 1);
+      if (!this.leftPlayers.find(q => q.id === p.id)) this.leftPlayers.push(p);
       this._broadcastState(); return;
     }
 
@@ -237,20 +240,24 @@ class PokerGame {
 
   // Called on temporary disconnect — mark disconnected but let the turn timer handle auto-action
   markDisconnected(id) {
-    // Broke spectators: just remove them silently
+    // Broke spectators: remove and save for leaderboard
     const bi = this.brokeSpectators.findIndex(p => p.id === id);
     if (bi >= 0) {
       const p = this.brokeSpectators[bi];
       if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
-      this.brokeSpectators.splice(bi, 1); return;
+      this.brokeSpectators.splice(bi, 1);
+      if (!this.leftPlayers.find(q => q.id === p.id)) this.leftPlayers.push(p);
+      return;
     }
 
-    // Standing players: just remove them silently
+    // Standing players: remove and save for leaderboard
     const si = this.standingPlayers.findIndex(p => p.id === id);
     if (si >= 0) {
       const p = this.standingPlayers[si];
       if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; }
-      this.standingPlayers.splice(si, 1); return;
+      this.standingPlayers.splice(si, 1);
+      if (!this.leftPlayers.find(q => q.id === p.id)) this.leftPlayers.push(p);
+      return;
     }
 
     // Pending players: just remove them (they haven't joined a hand yet)
@@ -361,10 +368,11 @@ class PokerGame {
     for (const p of readyPending) this.players.push(p);
     this.pendingPlayers = this.pendingPlayers.filter(p => p.seatIndex === null);
 
-    // Remove permanently-left players and clear their seats
+    // Remove permanently-left players and clear their seats; save for final leaderboard
     const permanentlyLeft = this.players.filter(p => p.permanentlyLeft);
     for (const p of permanentlyLeft) {
       if (p.seatIndex !== null) { this.seats[p.seatIndex] = null; p.seatIndex = null; }
+      if (!this.leftPlayers.find(q => q.id === p.id)) this.leftPlayers.push(p);
     }
 
     // Move 0-chip players to brokeSpectators instead of removing them
@@ -918,6 +926,14 @@ class PokerGame {
   requestEndGame(hostId) {
     if (hostId !== this.hostId) return { error: '只有房主才能结束游戏' };
     if (this.phase === PHASE.WAITING) return { error: '游戏尚未开始' };
+    // If waiting for players (only 1 seated), end immediately
+    if (this.waitingForBuyIn) {
+      clearTimeout(this._nextHandTimer);
+      this._nextHandTimer = null;
+      this._handStarting = false;
+      this._finalLeaderboard();
+      return { ok: true };
+    }
     this.pendingEnd = true;
     this._broadcastState();
     return { ok: true };
@@ -927,7 +943,9 @@ class PokerGame {
     this.phase = 'ended';
     this.timerDeadline = null;
     clearTimeout(this.timer);
-    const allPlayers = [...this.players, ...this.brokeSpectators, ...this.pendingPlayers, ...this.standingPlayers, ...this.kickedPlayers];
+    const seen = new Set();
+    const allPlayers = [...this.players, ...this.brokeSpectators, ...this.pendingPlayers, ...this.standingPlayers, ...this.kickedPlayers, ...this.leftPlayers]
+      .filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
     this.finalRankings = allPlayers
       .map(p => ({
         id: p.id,
