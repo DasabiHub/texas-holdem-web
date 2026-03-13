@@ -223,8 +223,9 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   border-top:1px solid rgba(255,255,255,.08);
   position:relative
 }
-#my-area{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;width:100%;position:relative}
+#my-area{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;width:100%;position:relative}
 #my-info-row{display:none}
+#my-center-group{display:flex;align-items:center;gap:10px;justify-content:center}
 #my-chips{font-size:13px;color:#FFD700;font-weight:700;flex-shrink:0;min-width:60px;text-align:right}
 #my-hand-name{font-size:12px;color:rgba(255,255,255,.6);flex-shrink:0;min-width:60px;text-align:left;align-self:flex-start;padding-top:6px}
 #my-cards-row{display:flex;gap:10px;min-height:76px;align-items:center;flex-shrink:0}
@@ -407,6 +408,14 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 .cfg-row input[type=number]:focus{border-color:#4CAF50;background:rgba(255,255,255,.15)}
 .cfg-row input[type=number]:disabled{color:#888;border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.04);cursor:default}
 .cfg-readonly-hint{text-align:center;font-size:12px;color:#556;padding:12px 20px;border-top:1px solid rgba(255,255,255,.06)}
+/* ── Toggle switch (private room) ────────────────────── */
+.cfg-toggle{position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0}
+.cfg-toggle input{opacity:0;width:0;height:0;position:absolute}
+.cfg-toggle-slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,.15);border-radius:26px;transition:.25s}
+.cfg-toggle-slider:before{content:'';position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s}
+.cfg-toggle input:checked+.cfg-toggle-slider{background:#4CAF50}
+.cfg-toggle input:checked+.cfg-toggle-slider:before{transform:translateX(18px)}
+.cfg-toggle input:disabled+.cfg-toggle-slider{opacity:.35;cursor:default}
 
 /* ── In-game settings button + panel (host only) ─────── */
 #btn-game-settings{
@@ -452,6 +461,27 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 #btn-end-game-panel:active{background:rgba(200,0,0,.8)}
 /* table blind info */
 #table-blind-info{font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.5px;margin-top:1px}
+
+/* ── Custom confirm dialog ────────────────────────────── */
+#confirm-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;z-index:700;padding:24px
+}
+#confirm-overlay.visible{display:flex}
+.confirm-box{
+  background:linear-gradient(160deg,#1b3525,#0d2018);
+  border:1px solid rgba(255,255,255,.18);border-radius:18px;
+  padding:24px 20px;width:100%;max-width:300px;
+  box-shadow:0 16px 48px rgba(0,0,0,.7);
+  animation:result-in .25s cubic-bezier(.34,1.4,.64,1)
+}
+.confirm-msg{font-size:14px;color:#ddd;line-height:1.6;text-align:center;margin-bottom:20px}
+.confirm-btns{display:flex;gap:10px}
+.confirm-btns button{flex:1;padding:11px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer}
+#confirm-cancel{background:rgba(255,255,255,.1);color:#aaa}
+#confirm-cancel:active{opacity:.7}
+#confirm-ok{background:linear-gradient(135deg,#c62828,#b71c1c);color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+#confirm-ok:active{opacity:.8}
 
 /* ── Pending-end notice ───────────────────────────────── */
 #pending-end-notice{
@@ -806,10 +836,10 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 .chat-name{color:#FFD700;font-weight:700;margin-right:3px;font-size:10px}
 .chat-text{color:#ddd}
 
-/* ── Social buttons (absolutely positioned, right of my-area) */
+/* ── Social buttons (right column of my-area grid) */
 #social-btns{
-  position:absolute;right:12px;top:50%;transform:translateY(-50%);
-  display:flex;flex-direction:row;gap:8px;align-items:center
+  display:flex;flex-direction:row;gap:8px;align-items:center;
+  flex-shrink:0;justify-content:flex-end
 }
 #btn-emoji,#btn-voice-toggle{
   width:48px;height:48px;border-radius:50%;
@@ -1006,9 +1036,12 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   <div id="pending-end-notice" data-i18n="pending_end">Host has requested to end the game — settling after this hand</div>
   <div id="bottom-panel">
     <div id="my-area">
-      <div id="my-chips"></div>
-      <div id="my-cards-row"></div>
-      <div id="my-hand-name"></div>
+      <div></div>
+      <div id="my-center-group">
+        <div id="my-chips"></div>
+        <div id="my-cards-row"></div>
+        <div id="my-hand-name"></div>
+      </div>
       <div id="social-btns">
         <button id="btn-emoji">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -1158,6 +1191,16 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
         </div>
         <input type="number" id="input-buyin-max" value="1000" min="100" step="100">
       </div>
+      <div class="cfg-row">
+        <div class="cfg-label-wrap">
+          <span class="cfg-label" data-i18n="private_label">Private Room</span>
+          <span class="cfg-hint" data-i18n="private_hint">Hidden from list; code changes on enable</span>
+        </div>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="input-is-private">
+          <span class="cfg-toggle-slider"></span>
+        </label>
+      </div>
     </div>
     <div class="cfg-readonly-hint" id="cfg-readonly-hint" style="display:none" data-i18n="cfg_host_only">Only the host can change settings</div>
   </div>
@@ -1169,6 +1212,16 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   <div class="spinner"></div>
   <div class="reconnect-msg" id="reconnect-msg" data-i18n="reconnecting">Connecting...</div>
   <div class="reconnect-sub" id="reconnect-sub"></div>
+</div>
+
+<div id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-btns">
+      <button id="confirm-cancel">Cancel</button>
+      <button id="confirm-ok">OK</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -1194,6 +1247,8 @@ const TRANSLATIONS = {
     starting_chips_label:'Starting chips', starting_chips_hint:"Each player's initial stack",
     blind_label:'Big blind', small_blind_hint: sb => `Small blind: ${sb}`,
     buyin_max_label:'Max buy-in', buyin_max_hint:'Per re-buy',
+    private_label:'Private Room', private_hint:'Hidden from list; code changes on enable',
+    confirm_private:'Switch to private? The room code will be regenerated — share the new code with your friends.',
     cfg_host_only:'Only the host can change settings',
     info_starting:'Starting chips', info_blinds:'Blinds', info_buyin:'Max buy-in',
     btn_start:'Start Game', waiting_for_host:'Waiting for host to start...',
@@ -1253,6 +1308,7 @@ const TRANSLATIONS = {
     confirm_exit:'Exit the game? Your chips will not be saved.',
     confirm_end:'End the game? Final standings will be shown after this hand.',
     confirm_end_now:'End the game? Final standings will be shown immediately.',
+    confirm_btn_cancel:'Cancel', confirm_btn_ok:'Confirm',
     waiting_for_players:'Waiting for players to join...',
     spectator_buyin_hint:'Buy in to join next hand',
     spectator_waiting_hint:'Will join automatically next hand',
@@ -1284,6 +1340,8 @@ const TRANSLATIONS = {
     starting_chips_label:'起手筹码', starting_chips_hint:'每位玩家的初始筹码',
     blind_label:'大盲注', small_blind_hint: sb => `小盲注: ${sb}`,
     buyin_max_label:'单次买入上限', buyin_max_hint:'每次补充买入',
+    private_label:'私密房间', private_hint:'不在列表显示；启用时房间代码会更换',
+    confirm_private:'切换为私密房间后，房间代码将会更换，请将新代码分享给朋友。确认切换？',
     cfg_host_only:'仅房主可修改设置',
     info_starting:'起手筹码', info_blinds:'盲注', info_buyin:'最大买入',
     btn_start:'开始游戏', waiting_for_host:'等待房主开始游戏…',
@@ -1343,6 +1401,7 @@ const TRANSLATIONS = {
     confirm_exit:'确定退出当前牌局？离开后筹码将不予保留。',
     confirm_end:'确定结束游戏？本局打完后将进入最终结算。',
     confirm_end_now:'确定结束游戏？将立即进入最终结算。',
+    confirm_btn_cancel:'取消', confirm_btn_ok:'确认',
     waiting_for_players:'等待其他玩家入座...',
     spectator_buyin_hint:'买入筹码后可加入下一局',
     spectator_waiting_hint:'下一局开始后自动上桌',
@@ -1404,7 +1463,7 @@ const SESSION_KEY = 'poker_session';
 
 // ── State ──────────────────────────────────────────────────
 let socket;
-let myId = null, myName = '', roomCode = null;
+let myId = null, myName = '', roomCode = null, displayCode = null;
 let gameState = null;
 let timerInterval = null;
 let raiseMin = 0, raiseMax = 0;
@@ -1432,6 +1491,26 @@ function clearSession() {
 // ── UI helpers ─────────────────────────────────────────────
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function rankLabel(r) { return r===11?'J':r===12?'Q':r===13?'K':r===14?'A':String(r); }
+
+function showConfirm(msg, onOk) {
+  const overlay = document.getElementById('confirm-overlay');
+  document.getElementById('confirm-msg').textContent = msg;
+  // Update button labels from i18n
+  document.getElementById('confirm-cancel').textContent = t('confirm_btn_cancel');
+  document.getElementById('confirm-ok').textContent = t('confirm_btn_ok');
+  overlay.classList.add('visible');
+  const ok     = document.getElementById('confirm-ok');
+  const cancel = document.getElementById('confirm-cancel');
+  function cleanup() {
+    overlay.classList.remove('visible');
+    ok.removeEventListener('click', handleOk);
+    cancel.removeEventListener('click', handleCancel);
+  }
+  function handleOk()     { cleanup(); onOk(); }
+  function handleCancel() { cleanup(); }
+  ok.addEventListener('click', handleOk);
+  cancel.addEventListener('click', handleCancel);
+}
 
 function showToast(msg, dur=2500) {
   const t = document.getElementById('toast');
@@ -1788,11 +1867,12 @@ function initSocket() {
         }
         myId = idToRejoin;
         roomCode = rcToRejoin;
+        displayCode = res.displayCode || rcToRejoin;
         saveSession();
         hideReconnecting();
 
         if (res.phase === 'waiting') {
-          document.getElementById('display-code').textContent = roomCode;
+          document.getElementById('display-code').textContent = displayCode;
           showScreen('waiting');
         }
         // game_state event will handle switching to game screen
@@ -1855,6 +1935,11 @@ function initSocket() {
   });
 
   socket.on('room_update', (info) => {
+    // Sync display code whenever it changes (e.g. after switching to private)
+    if (info.displayCode && info.displayCode !== displayCode) {
+      displayCode = info.displayCode;
+      document.getElementById('display-code').textContent = displayCode;
+    }
     if (document.getElementById('waiting').classList.contains('active')) {
       renderWaiting(info);
     }
@@ -1884,40 +1969,14 @@ function initSocket() {
     appendChatMsg(name, text, playerId === myId);
   });
 
-  // ── WebRTC signaling ───────────────────────────────────
-  socket.on('webrtc_signal', async ({ fromPlayerId, signal }) => {
-    if (!voiceActive) return;
-    let pc = voicePeers.get(fromPlayerId);
-
-    if (signal.type === 'offer') {
-      if (!pc) pc = createPeerConnection(fromPlayerId);
-      await pc.setRemoteDescription(new RTCSessionDescription(signal));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('webrtc_signal', { toPlayerId: fromPlayerId, signal: { type: 'answer', ...answer } });
-    } else if (signal.type === 'answer') {
-      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(signal));
-    } else if (signal.type === 'ice') {
-      if (pc) await pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(() => {});
-    }
-  });
-
-  // ── Voice join/leave ───────────────────────────────────
-  socket.on('voice_join', async ({ playerId }) => {
-    if (!voiceActive || !localStream) return;
-    // We are in voice: send offer to new joiner
-    const pc = createPeerConnection(playerId);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('webrtc_signal', { toPlayerId: playerId, signal: { type: 'offer', ...offer } });
-  });
-
-  socket.on('voice_leave', ({ playerId }) => {
-    removePeer(playerId);
+  // ── Voice (server-relay PCM) ───────────────────────────
+  socket.on('voice_data', ({ fromPlayerId, data }) => {
+    playPCMChunk(fromPlayerId, data);
   });
 
   socket.on('voice_speaking', ({ playerId, speaking }) => {
     setSeatMic(playerId, speaking);
+    if (!speaking) playerNextPlayTime.delete(playerId);
   });
 }
 
@@ -1929,8 +1988,9 @@ document.getElementById('btn-create').addEventListener('click', () => {
     if (res.error) { showToast(res.error); return; }
     myId = res.playerId;
     roomCode = res.roomCode;
+    displayCode = res.displayCode || res.roomCode;
     saveSession();
-    document.getElementById('display-code').textContent = roomCode;
+    document.getElementById('display-code').textContent = displayCode;
     showScreen('waiting');
   });
 });
@@ -1966,14 +2026,15 @@ function joinRoom(code) {
     if (res.error) { showToast(res.error); return; }
     myId = res.playerId;
     roomCode = res.roomCode;
+    displayCode = res.displayCode || res.roomCode;
     saveSession();
-    document.getElementById('display-code').textContent = roomCode;
+    document.getElementById('display-code').textContent = displayCode;
     showScreen('waiting');
   });
 }
 
 document.getElementById('display-code').addEventListener('click', () => {
-  navigator.clipboard?.writeText(roomCode).then(() => showToast(t('toast_code_copied')));
+  navigator.clipboard?.writeText(displayCode || roomCode).then(() => showToast(t('toast_code_copied')));
 });
 
 document.getElementById('btn-leave-room').addEventListener('click', () => {
@@ -2079,12 +2140,15 @@ function _syncConfigModal(info) {
   const inStarting = document.getElementById('input-starting-chips');
   const inBigBlind = document.getElementById('input-big-blind');
   const inBuyinMax = document.getElementById('input-buyin-max');
+  const inPrivate  = document.getElementById('input-is-private');
   inStarting.disabled = !isHost;
   inBigBlind.disabled = !isHost;
   inBuyinMax.disabled = !isHost;
+  inPrivate.disabled  = !isHost;
   if (info.startingChips) inStarting.value = info.startingChips;
   if (info.bigBlind)      inBigBlind.value = info.bigBlind;
   if (info.maxBuyIn)      inBuyinMax.value = info.maxBuyIn;
+  if (info.isPrivate !== undefined) inPrivate.checked = info.isPrivate;
   const sb = info.smallBlind || Math.floor((info.bigBlind || 20) / 2);
   document.getElementById('small-blind-hint').textContent = t('small_blind_hint', sb);
   document.getElementById('cfg-readonly-hint').style.display = isHost ? 'none' : 'block';
@@ -2647,12 +2711,13 @@ document.getElementById('btn-raise-confirm').addEventListener('click', () => {
 });
 
 document.getElementById('btn-exit-game').addEventListener('click', () => {
-  if (!confirm(t('confirm_exit'))) return;
-  socket.emit('leave_room', () => {
-    clearSession();
-    gameState = null;
-    clearInterval(timerInterval);
-    showScreen('lobby');
+  showConfirm(t('confirm_exit'), () => {
+    socket.emit('leave_room', () => {
+      clearSession();
+      gameState = null;
+      clearInterval(timerInterval);
+      showScreen('lobby');
+    });
   });
 });
 
@@ -2698,6 +2763,20 @@ document.getElementById('input-big-blind').addEventListener('change', function()
 document.getElementById('input-buyin-max').addEventListener('change', function() {
   const v = parseInt(this.value);
   if (!isNaN(v) && v >= 100) sendConfig('maxBuyIn', v);
+});
+
+document.getElementById('input-is-private').addEventListener('change', function() {
+  const makePrivate = this.checked;
+  if (makePrivate) {
+    // Confirm before switching to private (code will change)
+    showConfirm(t('confirm_private'), () => {
+      sendConfig('isPrivate', true);
+    });
+    // Revert checkbox until confirmed (will be synced back via room_update)
+    this.checked = false;
+  } else {
+    sendConfig('isPrivate', false);
+  }
 });
 
 // ── Buy-in modal ────────────────────────────────────────────
@@ -2801,10 +2880,11 @@ document.getElementById('gsp-max-buyin').addEventListener('change', function() {
 
 document.getElementById('btn-end-game-panel').addEventListener('click', () => {
   const msgKey = gameState?.waitingForBuyIn ? 'confirm_end_now' : 'confirm_end';
-  if (!confirm(t(msgKey))) return;
-  gameSettingsPanel.style.display = 'none';
-  socket.emit('request_end_game', (res) => {
-    if (res?.error) showToast(res.error);
+  showConfirm(t(msgKey), () => {
+    gameSettingsPanel.style.display = 'none';
+    socket.emit('request_end_game', (res) => {
+      if (res?.error) showToast(res.error);
+    });
   });
 });
 
@@ -3005,58 +3085,86 @@ document.getElementById('chat-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendChatMsg();
 });
 
-// ── WebRTC voice chat (Push-to-Talk) ───────────────────────
-let voiceActive = false;
+// ── Voice chat (server-relay PCM, Push-to-Talk) ────────────
 let localStream = null;
-const voicePeers = new Map(); // playerId -> RTCPeerConnection
-const speakingPlayers = new Set(); // playerIds currently mic-active (PTT)
+let _voiceReady = false;      // AudioWorklet pipeline initialized
+let _pttActive = false;
+let _voiceAudioCtx = null;
+let _workletNode = null;
+let _playbackCtx = null;
+const speakingPlayers = new Set();
+const playerNextPlayTime = new Map();
 
-const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-
-function createPeerConnection(remoteId) {
-  const pc = new RTCPeerConnection(RTC_CONFIG);
-
-  if (localStream) {
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+// AudioWorklet processor — inlined as blob URL, no extra files needed
+// Note: avoid optional chaining (?.) — AudioWorkletGlobalScope may use older JS engine
+const _WORKLET_SRC = `
+class PCMProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._buf = [];
+    this._ratio = 1;  // nativeRate / 16000, set via init message
+    this._acc = 0;
+    this.port.onmessage = function(e) {
+      if (e.data && e.data.type === 'init') {
+        this._ratio = e.data.nativeRate / 16000;
+      }
+    }.bind(this);
   }
-
-  pc.onicecandidate = (e) => {
-    if (e.candidate) {
-      socket.emit('webrtc_signal', { toPlayerId: remoteId, signal: { type: 'ice', candidate: e.candidate } });
+  process(inputs) {
+    var ch = inputs[0] && inputs[0][0];
+    if (!ch) return true;
+    // Downsample from nativeRate to 16kHz via simple decimation
+    for (var i = 0; i < ch.length; i++) {
+      this._acc += 1;
+      if (this._acc >= this._ratio) {
+        this._acc -= this._ratio;
+        this._buf.push(ch[i]);
+      }
     }
-  };
-
-  pc.ontrack = (e) => {
-    const audio = new Audio();
-    audio.srcObject = e.streams[0];
-    audio.autoplay = true;
-    pc._remoteAudio = audio;
-  };
-
-  pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-      removePeer(remoteId);
+    // Emit 100ms chunks (1600 samples at 16kHz)
+    while (this._buf.length >= 1600) {
+      var f = this._buf.splice(0, 1600);
+      var b = new Int16Array(1600);
+      for (var i = 0; i < 1600; i++)
+        b[i] = Math.max(-32768, Math.min(32767, (f[i] * 32767) | 0));
+      this.port.postMessage(b.buffer, [b.buffer]);
     }
-  };
+    return true;
+  }
+}
+registerProcessor('pcm-processor', PCMProcessor);
+`;
 
-  voicePeers.set(remoteId, pc);
-  return pc;
+function _getPlaybackCtx() {
+  if (!_playbackCtx) _playbackCtx = new AudioContext({ sampleRate: 16000 });
+  if (_playbackCtx.state === 'suspended') _playbackCtx.resume();
+  return _playbackCtx;
 }
 
-function removePeer(remoteId) {
-  const pc = voicePeers.get(remoteId);
-  if (!pc) return;
-  pc.close();
-  if (pc._remoteAudio) { pc._remoteAudio.srcObject = null; }
-  voicePeers.delete(remoteId);
-  setSeatMic(remoteId, false);
+function playPCMChunk(playerId, arrayBuffer) {
+  try {
+    const ctx = _getPlaybackCtx();
+    const i16 = new Int16Array(arrayBuffer);
+    const f32 = new Float32Array(i16.length);
+    for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32767;
+    const buf = ctx.createBuffer(1, f32.length, 16000);
+    buf.getChannelData(0).set(f32);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    // Jitter buffer: schedule each chunk right after the previous one;
+    // if we've fallen behind (network gap), add 60ms cushion before resuming
+    const now = ctx.currentTime;
+    let t = playerNextPlayTime.get(playerId) || 0;
+    if (t < now) t = now + 0.06;
+    src.start(t);
+    playerNextPlayTime.set(playerId, t + buf.duration);
+  } catch(e) {}
 }
 
 function setSeatMic(playerId, on) {
   const seat = document.querySelector(`.seat[data-player-id="${playerId}"]`);
-  if (seat) {
-    seat.classList.toggle('seat-mic-active', on);
-  }
+  if (seat) seat.classList.toggle('seat-mic-active', on);
   if (on) speakingPlayers.add(playerId);
   else speakingPlayers.delete(playerId);
 }
@@ -3067,23 +3175,45 @@ async function pttStart() {
   if (!navigator.mediaDevices?.getUserMedia) {
     showToast(t('voice_no_support')); return;
   }
+  // Pre-init playback context inside user gesture — required for iOS Safari autoplay policy
+  _getPlaybackCtx();
+
   // Acquire mic on first press
   if (!localStream) {
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      // Start muted — only unmute while button is held
-      localStream.getAudioTracks().forEach(tr => { tr.enabled = false; });
     } catch {
       showToast('Microphone access denied'); return;
     }
   }
-  // Join voice channel if first time
-  if (!voiceActive) {
-    voiceActive = true;
-    socket.emit('voice_join');
+
+  // Set up AudioWorklet pipeline once (reused across all subsequent PTT presses)
+  if (!_voiceReady) {
+    try {
+      // Must use native sample rate for capture — createMediaStreamSource requires
+      // the AudioContext sample rate to match the hardware stream rate
+      _voiceAudioCtx = new AudioContext();
+      const blob = new Blob([_WORKLET_SRC], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      await _voiceAudioCtx.audioWorklet.addModule(url);
+      URL.revokeObjectURL(url);
+      const micSrc = _voiceAudioCtx.createMediaStreamSource(localStream);
+      _workletNode = new AudioWorkletNode(_voiceAudioCtx, 'pcm-processor');
+      // Tell worklet the native rate so it can downsample to 16kHz
+      _workletNode.port.postMessage({ type: 'init', nativeRate: _voiceAudioCtx.sampleRate });
+      // Gate: only emit audio data while PTT button is held
+      _workletNode.port.onmessage = (e) => {
+        if (_pttActive) socket.emit('voice_data', e.data);
+      };
+      micSrc.connect(_workletNode);
+      _voiceReady = true;
+    } catch(e) {
+      console.error('[voice] AudioWorklet init failed:', e);
+      showToast(t('voice_no_support')); return;
+    }
   }
-  // Unmute and broadcast
-  localStream.getAudioTracks().forEach(tr => { tr.enabled = true; });
+
+  _pttActive = true;
   socket.emit('voice_speaking', { speaking: true });
   setSeatMic(myId, true);
   document.getElementById('btn-voice-toggle').classList.add('ptt-active');
@@ -3092,8 +3222,8 @@ async function pttStart() {
 
 // PTT: stop speaking
 function pttStop() {
-  if (!localStream) return;
-  localStream.getAudioTracks().forEach(tr => { tr.enabled = false; });
+  if (!_pttActive) return;
+  _pttActive = false;
   socket.emit('voice_speaking', { speaking: false });
   setSeatMic(myId, false);
   document.getElementById('btn-voice-toggle').classList.remove('ptt-active');

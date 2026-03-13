@@ -17,6 +17,8 @@ const TURN_TIME = 30; // seconds
 class PokerGame {
   constructor(roomCode, io) {
     this.roomCode = roomCode;
+    this.displayCode = roomCode; // what players see; can change when switching to private
+    this.isPrivate = false;
     this.io = io;
     this.hostId = null;
     this.players = []; // [{ id, name, chips, socketId, totalBet, roundBet, folded, allIn, holeCards, lastAction, seatIndex }]
@@ -1177,6 +1179,8 @@ class PokerGame {
   _publicRoomInfo() {
     return {
       roomCode: this.roomCode,
+      displayCode: this.displayCode,
+      isPrivate: this.isPrivate,
       hostId: this.hostId,
       phase: this.phase,
       startingChips: this.startingChips,

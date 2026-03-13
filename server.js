@@ -37,12 +37,15 @@ if (httpsServer) io.attach(httpsServer);
 const LANG = process.env.GAME_LANG || 'en';
 const MSG = {
   en: { roomNotFound: 'Room not found', sessionExpired: 'Session expired',
-        roomDissolved: 'Room closed', invalidSeat: 'Invalid seat' },
+        roomDissolved: 'Room closed', invalidSeat: 'Invalid seat',
+        notHost: 'Host only' },
   zh: { roomNotFound: '房间不存在', sessionExpired: '会话已过期',
-        roomDissolved: '房间已解散', invalidSeat: '无效座位' },
+        roomDissolved: '房间已解散', invalidSeat: '无效座位',
+        notHost: '只有房主才能设置' },
 }[LANG] || {
   roomNotFound: 'Room not found', sessionExpired: 'Session expired',
-  roomDissolved: 'Room closed', invalidSeat: 'Invalid seat'
+  roomDissolved: 'Room closed', invalidSeat: 'Invalid seat',
+  notHost: 'Host only'
 };
 
 app.get('/', (req, res) => {
@@ -52,6 +55,8 @@ app.get('/', (req, res) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
+// codeIndex: displayCode -> internalRoomCode (for join lookups; internal code never changes)
+const codeIndex = new Map();
 // sessions: playerId -> { roomCode, disconnectTimer }
 const sessions = new Map();
 // kickTimers: playerId -> setTimeout handle (5-min kick after standing while disconnected)
@@ -62,6 +67,14 @@ const GRACE_MS = 3 * 60 * 1000; // 3-minute grace period for reconnection
 function genCode() {
   let code;
   do { code = String(Math.floor(Math.random() * 1000000)).padStart(6, '0'); } while (rooms.has(code));
+  return code;
+}
+
+// Generate a new display code that doesn't collide with any existing display or internal code
+function genDisplayCode() {
+  let code;
+  do { code = String(Math.floor(Math.random() * 1000000)).padStart(6, '0'); }
+  while (codeIndex.has(code) || rooms.has(code));
   return code;
 }
 
@@ -98,12 +111,13 @@ io.on('connection', (socket) => {
   // ── Room list ────────────────────────────────────────────
   socket.on('get_rooms', () => {
     const list = [];
-    for (const [code, game] of rooms) {
+    for (const [, game] of rooms) {
+      if (game.isPrivate) continue; // private rooms are hidden
       const total = game.players.length + game.pendingPlayers.length + game.standingPlayers.length;
       if (total === 0 || total >= 9) continue;
       const host = game.players.find(p => p.id === game.hostId);
       list.push({
-        code,
+        code: game.displayCode,
         playerCount: total,
         hostName: host?.name || '',
         inProgress: game.phase !== 'waiting',
@@ -117,6 +131,7 @@ io.on('connection', (socket) => {
     const code = genCode();
     const game = new PokerGame(code, io);
     rooms.set(code, game);
+    codeIndex.set(code, code); // displayCode -> internalCode (initially same)
 
     // Set up callback: when a player is auto-stood-up due to disconnect, start 5-min kick timer
     game.onPlayerAutoStoodUp = (playerId) => {
@@ -127,7 +142,7 @@ io.on('connection', (socket) => {
     // Use a persistent UUID, not socket.id
     const pid = crypto.randomUUID();
     const res = game.addPlayer(pid, name, socket.id);
-    if (res.error) { rooms.delete(code); return cb({ error: res.error }); }
+    if (res.error) { codeIndex.delete(code); rooms.delete(code); return cb({ error: res.error }); }
 
     game.hostId = pid;
     curRoom = code;
@@ -135,13 +150,16 @@ io.on('connection', (socket) => {
     sessions.set(pid, { roomCode: code, disconnectTimer: null });
 
     socket.join(code);
-    cb({ ok: true, roomCode: code, playerId: pid });
+    cb({ ok: true, roomCode: code, displayCode: game.displayCode, playerId: pid });
     io.to(code).emit('room_update', game._publicRoomInfo());
   });
 
   // ── Join room ────────────────────────────────────────────
   socket.on('join_room', ({ name, roomCode }, cb) => {
-    const game = rooms.get(roomCode);
+    // Resolve display code -> internal code via codeIndex
+    const internalCode = codeIndex.get(roomCode);
+    if (!internalCode) return cb({ error: MSG.roomNotFound });
+    const game = rooms.get(internalCode);
     if (!game) return cb({ error: MSG.roomNotFound });
 
     const pid = crypto.randomUUID();
@@ -158,13 +176,13 @@ io.on('connection', (socket) => {
       spectator = true;
     }
 
-    curRoom = roomCode;
+    curRoom = internalCode;
     curPlayer = pid;
-    sessions.set(pid, { roomCode, disconnectTimer: null });
+    sessions.set(pid, { roomCode: internalCode, disconnectTimer: null });
 
-    socket.join(roomCode);
-    cb({ ok: true, roomCode, playerId: pid, spectator });
-    io.to(roomCode).emit('room_update', game._publicRoomInfo());
+    socket.join(internalCode);
+    cb({ ok: true, roomCode: internalCode, displayCode: game.displayCode, playerId: pid, spectator });
+    io.to(internalCode).emit('room_update', game._publicRoomInfo());
 
     // Send current game state immediately to spectators
     if (spectator) socket.emit('game_state', game._stateFor(pid));
@@ -210,11 +228,11 @@ io.on('connection', (socket) => {
     socket.join(roomCode);
 
     if (game.phase === 'waiting') {
-      cb({ ok: true, phase: 'waiting', roomCode, playerId, spectator: false });
+      cb({ ok: true, phase: 'waiting', roomCode, displayCode: game.displayCode, playerId, spectator: false });
       io.to(roomCode).emit('room_update', game._publicRoomInfo());
     } else {
       const isSpectator = !game.players.find(p => p.id === playerId);
-      cb({ ok: true, phase: game.phase, roomCode, playerId, spectator: isSpectator });
+      cb({ ok: true, phase: game.phase, roomCode, displayCode: game.displayCode, playerId, spectator: isSpectator });
       socket.emit('game_state', game._stateFor(playerId));
     }
   });
@@ -241,7 +259,7 @@ io.on('connection', (socket) => {
       }
       const remaining = game.players.filter(p => !p.disconnected);
       if (remaining.length > 0) io.to(curRoom).emit('room_update', game._publicRoomInfo());
-      else rooms.delete(curRoom);
+      else { codeIndex.delete(game.displayCode); rooms.delete(curRoom); }
     }
 
     socket.leave(curRoom);
@@ -272,7 +290,24 @@ io.on('connection', (socket) => {
   socket.on('configure_room', (data, cb) => {
     const game = rooms.get(curRoom);
     if (!game) return cb?.({ error: MSG.roomNotFound });
-    const { startingChips, bigBlind, maxBuyIn } = data || {};
+    const { startingChips, bigBlind, maxBuyIn, isPrivate } = data || {};
+
+    // Handle isPrivate toggle (managed here, not inside game.configure)
+    if (isPrivate !== undefined) {
+      if (game.hostId !== curPlayer) return cb?.({ error: MSG.notHost });
+      const makePrivate = !!isPrivate;
+      if (makePrivate !== game.isPrivate) {
+        if (makePrivate) {
+          // Switching to private: replace display code so old code becomes invalid
+          codeIndex.delete(game.displayCode);
+          const newCode = genDisplayCode();
+          codeIndex.set(newCode, curRoom);
+          game.displayCode = newCode;
+        }
+        game.isPrivate = makePrivate;
+      }
+    }
+
     const res = game.configure(curPlayer, { startingChips, bigBlind, maxBuyIn });
     if (res?.error) return cb?.({ error: res.error });
     io.to(curRoom).emit('room_update', game._publicRoomInfo());
@@ -355,27 +390,10 @@ io.on('connection', (socket) => {
     io.to(curRoom).emit('chat_msg', { playerId: curPlayer, name: p.name, text: msg });
   });
 
-  // ── WebRTC signaling ──────────────────────────────────────
-  socket.on('webrtc_signal', ({ toPlayerId, signal }) => {
+  // ── Voice channel (server-relay PCM) ─────────────────────
+  socket.on('voice_data', (data) => {
     if (!curRoom || !curPlayer) return;
-    const game = rooms.get(curRoom);
-    if (!game) return;
-    const allP = [...game.players, ...game.pendingPlayers, ...game.standingPlayers];
-    const target = allP.find(q => q.id === toPlayerId);
-    if (!target) return;
-    const targetSocket = io.sockets.sockets.get(target.socketId);
-    if (targetSocket) targetSocket.emit('webrtc_signal', { fromPlayerId: curPlayer, signal });
-  });
-
-  // ── Voice channel ─────────────────────────────────────────
-  socket.on('voice_join', () => {
-    if (!curRoom || !curPlayer) return;
-    socket.to(curRoom).emit('voice_join', { playerId: curPlayer });
-  });
-
-  socket.on('voice_leave', () => {
-    if (!curRoom || !curPlayer) return;
-    socket.to(curRoom).emit('voice_leave', { playerId: curPlayer });
+    socket.to(curRoom).emit('voice_data', { fromPlayerId: curPlayer, data });
   });
 
   socket.on('voice_speaking', ({ speaking }) => {
@@ -416,14 +434,14 @@ io.on('connection', (socket) => {
           }
         }
         const remaining = game.players.filter(p => !p.disconnected);
-        if (remaining.length === 0) rooms.delete(curRoom);
+        if (remaining.length === 0) { codeIndex.delete(game.displayCode); rooms.delete(curRoom); }
       }
       // Mid-game: player stays connected to game logic; standing kick timer handles final removal.
       // Special case: waitingForBuyIn (only 1 player left, no active hand) — dissolve if no one remains
       if (game.waitingForBuyIn) {
         const anyConnected = [...game.players, ...game.pendingPlayers, ...game.standingPlayers]
           .some(p => !p.disconnected);
-        if (!anyConnected) rooms.delete(curRoom);
+        if (!anyConnected) { codeIndex.delete(game.displayCode); rooms.delete(curRoom); }
       }
     }, GRACE_MS);
   });
