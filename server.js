@@ -330,6 +330,59 @@ io.on('connection', (socket) => {
     else cb?.({ ok: true });
   });
 
+  // ── Emoji ─────────────────────────────────────────────────
+  socket.on('send_emoji', ({ emoji }) => {
+    if (!curRoom || !curPlayer) return;
+    const game = rooms.get(curRoom);
+    if (!game) return;
+    const allP = [...game.players, ...game.pendingPlayers, ...game.standingPlayers];
+    const p = allP.find(q => q.id === curPlayer);
+    if (!p) return;
+    io.to(curRoom).emit('emoji_msg', { playerId: curPlayer, name: p.name, emoji });
+  });
+
+  // ── Chat ──────────────────────────────────────────────────
+  socket.on('chat_msg', ({ text }) => {
+    if (!curRoom || !curPlayer) return;
+    if (typeof text !== 'string') return;
+    const msg = text.trim().slice(0, 100);
+    if (!msg) return;
+    const game = rooms.get(curRoom);
+    if (!game) return;
+    const allP = [...game.players, ...game.pendingPlayers, ...game.standingPlayers];
+    const p = allP.find(q => q.id === curPlayer);
+    if (!p) return;
+    io.to(curRoom).emit('chat_msg', { playerId: curPlayer, name: p.name, text: msg });
+  });
+
+  // ── WebRTC signaling ──────────────────────────────────────
+  socket.on('webrtc_signal', ({ toPlayerId, signal }) => {
+    if (!curRoom || !curPlayer) return;
+    const game = rooms.get(curRoom);
+    if (!game) return;
+    const allP = [...game.players, ...game.pendingPlayers, ...game.standingPlayers];
+    const target = allP.find(q => q.id === toPlayerId);
+    if (!target) return;
+    const targetSocket = io.sockets.sockets.get(target.socketId);
+    if (targetSocket) targetSocket.emit('webrtc_signal', { fromPlayerId: curPlayer, signal });
+  });
+
+  // ── Voice channel ─────────────────────────────────────────
+  socket.on('voice_join', () => {
+    if (!curRoom || !curPlayer) return;
+    socket.to(curRoom).emit('voice_join', { playerId: curPlayer });
+  });
+
+  socket.on('voice_leave', () => {
+    if (!curRoom || !curPlayer) return;
+    socket.to(curRoom).emit('voice_leave', { playerId: curPlayer });
+  });
+
+  socket.on('voice_speaking', ({ speaking }) => {
+    if (!curRoom || !curPlayer) return;
+    socket.to(curRoom).emit('voice_speaking', { playerId: curPlayer, speaking: !!speaking });
+  });
+
   // ── Disconnect ───────────────────────────────────────────
   socket.on('disconnect', () => {
     if (!curRoom || !curPlayer) return;

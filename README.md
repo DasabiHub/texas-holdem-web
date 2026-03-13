@@ -8,9 +8,14 @@ Real-time multiplayer Texas Hold'em poker in the browser. No account needed — 
 
 ## Features
 
-- Up to 9 players per room, spectator support
+- Up to 9 players per room, spectator support, seat selection
 - Full rules: blinds, side pots, all-in, turn timer, reconnection grace period
-- Buy-in system with configurable limits per room
+- Buy-in system with configurable starting chips, big blind, and max buy-in per room
+- Stand up / sit down mid-game; host can adjust settings and end the game early
+- Hand history panel to review previous hands
+- **Text chat** — in-game and waiting room chat, shared across both screens
+- **Emoji reactions** — floating emoji bubbles visible to all players at the table
+- **Voice chat** — WebRTC push-to-talk (P2P mesh, server only relays signaling)
 - Bilingual UI — English (default) or Chinese (`GAME_LANG=zh`)
 - **PWA** — installable on iOS & Android, works offline after first load
 

@@ -52,12 +52,12 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 .empty-hint{color:#555;font-size:14px;text-align:center;padding:24px 0}
 
 /* ── Waiting Room ────────────────────────────────────────── */
-#waiting{padding:24px;gap:16px;background:#0d2b1e;overflow-y:auto}
+#waiting{padding:24px;gap:16px;background:#0d2b1e;overflow:hidden}
 #waiting-seats{flex-shrink:1;min-height:0}
-.code-box{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:10px 16px;text-align:center;display:flex;align-items:center;justify-content:center;gap:12px}
-.code-label{font-size:11px;color:#aaa}
-.code-value{font-size:26px;font-weight:800;letter-spacing:6px;color:#FFD700;cursor:pointer}
-.code-hint{font-size:10px;color:#555}
+.code-box{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:6px 14px;text-align:center;display:flex;align-items:center;justify-content:center;gap:12px}
+.code-label{font-size:10px;color:#aaa}
+.code-value{font-size:22px;font-weight:800;letter-spacing:6px;color:#FFD700;cursor:pointer}
+.code-hint{font-size:9px;color:#555}
 #waiting-players{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
 .player-item{background:rgba(255,255,255,.06);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px}
 .player-avatar-sm{width:36px;height:36px;border-radius:50%;background:#2c3e50;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
@@ -223,10 +223,10 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   border-top:1px solid rgba(255,255,255,.08);
   position:relative
 }
-#my-area{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;width:100%}
+#my-area{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;width:100%;position:relative}
 #my-info-row{display:none}
 #my-chips{font-size:13px;color:#FFD700;font-weight:700;flex-shrink:0;min-width:60px;text-align:right}
-#my-hand-name{font-size:12px;color:rgba(255,255,255,.6);flex-shrink:0;min-width:60px;text-align:left}
+#my-hand-name{font-size:12px;color:rgba(255,255,255,.6);flex-shrink:0;min-width:60px;text-align:left;align-self:flex-start;padding-top:6px}
 #my-cards-row{display:flex;gap:10px;min-height:76px;align-items:center;flex-shrink:0}
 #action-row{display:flex;align-items:center;justify-content:center;gap:14px;width:100%}
 .action-btn{
@@ -264,17 +264,17 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   color:#fff;font-size:12px;font-weight:700;cursor:pointer
 }
 .raise-step-btn:active{background:rgba(255,255,255,.25)}
-#raise-right{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+#raise-right{display:flex;flex-direction:column;justify-content:space-between;align-items:stretch;align-self:stretch}
 .raise-presets{display:flex;gap:5px;justify-content:center}
 .preset-btn{
-  padding:6px 10px;background:rgba(255,255,255,.1);
+  padding:9px 10px;background:rgba(255,255,255,.1);
   border:1px solid rgba(255,255,255,.15);border-radius:8px;
   color:#fff;font-size:11px;cursor:pointer;font-weight:600
 }
 .preset-btn:active{background:rgba(255,255,255,.2)}
 .raise-confirm-row{display:flex;gap:8px;justify-content:center}
-#btn-raise-cancel{padding:5px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:9px;color:#fff;font-size:12px;cursor:pointer;flex:1}
-#btn-raise-confirm{padding:5px 10px;background:#2e7d32;border:none;border-radius:9px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;flex:1}
+#btn-raise-cancel{padding:8px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:9px;color:#fff;font-size:12px;cursor:pointer;flex:1}
+#btn-raise-confirm{padding:8px 10px;background:#2e7d32;border:none;border-radius:9px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;flex:1}
 #result-overlay{
   position:absolute;inset:0;background:rgba(0,0,0,.72);
   display:none;align-items:center;justify-content:center;z-index:50;
@@ -732,6 +732,143 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;display:none
 }
 #btn-stand-up:active{background:rgba(180,0,0,1)}
+
+/* ── Emoji bubble ─────────────────────────────────────────── */
+@keyframes emoji-float{
+  0%  {opacity:0;transform:translate(-50%,-50%) scale(.4)}
+  15% {opacity:1;transform:translate(-50%,-70%) scale(1.2)}
+  70% {opacity:1;transform:translate(-50%,-110%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-140%) scale(.8)}
+}
+.emoji-bubble{
+  position:absolute;font-size:36px;z-index:60;pointer-events:none;
+  animation:emoji-float 2.8s cubic-bezier(.34,1.4,.64,1) forwards
+}
+
+/* ── Emoji picker ─────────────────────────────────────────── */
+@keyframes picker-in{
+  from{opacity:0;transform:scale(.8) translateY(6px)}
+  to  {opacity:1;transform:scale(1)  translateY(0)}
+}
+@keyframes picker-out{
+  from{opacity:1;transform:scale(1)  translateY(0)}
+  to  {opacity:0;transform:scale(.8) translateY(6px)}
+}
+#emoji-picker{
+  position:fixed;
+  background:rgba(4,16,8,.98);border:1px solid rgba(255,215,0,.35);
+  border-radius:10px;padding:5px;display:none;gap:2px;flex-wrap:wrap;
+  z-index:200;transform-origin:bottom center
+}
+#emoji-picker.visible{animation:picker-in  .2s cubic-bezier(.34,1.4,.64,1) both}
+#emoji-picker.closing{animation:picker-out .15s cubic-bezier(.4,0,.6,1)  both}
+#emoji-picker span{font-size:26px;cursor:pointer;padding:3px;border-radius:6px;display:inline-block;line-height:1}
+#emoji-picker span:hover{background:rgba(255,255,255,.15)}
+
+/* ── Chat panel (auto-hide, near player avatar) ────────────── */
+#chat-panel{
+  position:absolute;
+  top:78%;bottom:-20px;
+  left:4px;right:calc(62.5% + 2px);
+  background:transparent;
+  border-radius:10px;display:flex;flex-direction:column;z-index:22;
+  overflow:hidden
+}
+#chat-hint{
+  display:none;font-size:10px;color:rgba(255,255,255,.35);
+  text-align:center;padding:4px 6px;letter-spacing:.3px;flex-shrink:0
+}
+#chat-panel.chat-hidden #chat-hint{display:block}
+#chat-panel.chat-hidden #chat-log{display:none}
+#chat-panel.chat-hidden{justify-content:flex-end;align-items:flex-start}
+#chat-log{
+  flex:1;overflow-y:auto;padding:5px 6px;font-size:11px;
+  scrollbar-width:none;display:flex;flex-direction:column;min-height:0
+}
+#chat-log::-webkit-scrollbar{display:none}
+#chat-log-spacer{flex:1;min-height:0}
+#chat-input-row{
+  display:none;gap:3px;padding:4px;
+  border-top:1px solid rgba(255,255,255,.08);flex-shrink:0
+}
+#chat-panel.chat-open #chat-input-row{display:flex}
+#chat-input{
+  flex:1;min-width:0;background:rgba(255,255,255,.09);border:none;
+  border-radius:5px;color:#fff;padding:3px 6px;font-size:11px;outline:none
+}
+#chat-input:focus{background:rgba(255,255,255,.16)}
+#chat-send{
+  background:rgba(255,255,255,.12);color:#fff;border:none;
+  border-radius:5px;padding:3px 7px;cursor:pointer;font-size:14px;flex-shrink:0
+}
+#chat-send:active{background:#2e7d32}
+.chat-row{margin-bottom:4px;line-height:1.35}
+.chat-name{color:#FFD700;font-weight:700;margin-right:3px;font-size:10px}
+.chat-text{color:#ddd}
+
+/* ── Social buttons (absolutely positioned, right of my-area) */
+#social-btns{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:row;gap:8px;align-items:center
+}
+#btn-emoji,#btn-voice-toggle{
+  width:48px;height:48px;border-radius:50%;
+  background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.22);
+  color:#fff;font-size:22px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;-webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;touch-action:none
+}
+#btn-emoji:active{background:rgba(255,255,255,.25)}
+#btn-voice-toggle.ptt-active{background:#1b5e20;border-color:#4caf50;box-shadow:0 0 10px rgba(76,175,80,.6)}
+/* ── Seat mic indicator ───────────────────────────────────── */
+.seat-mic-indicator{
+  position:absolute;bottom:-3px;right:-3px;z-index:6;
+  width:18px;height:18px;border-radius:50%;
+  background:#4caf50;border:2px solid #0d2b1e;
+  display:none;align-items:center;justify-content:center;
+  color:#fff
+}
+.seat-mic-active .seat-mic-indicator{display:flex}
+
+/* ── Waiting room chat + voice ────────────────────────── */
+#waiting-social-row{
+  display:flex;align-items:stretch;gap:8px;margin-top:6px;flex:1;min-height:0
+}
+#waiting-chat-panel{
+  flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;overflow:hidden
+}
+#waiting-chat-log{
+  flex:1;min-height:0;overflow-y:auto;padding:5px 8px;font-size:11px;
+  display:flex;flex-direction:column;gap:2px;scrollbar-width:none
+}
+#waiting-chat-log::-webkit-scrollbar{display:none}
+#waiting-chat-empty{color:rgba(255,255,255,.2);font-size:11px;text-align:center;padding:10px 0}
+#waiting-chat-input-row{
+  display:flex;gap:4px;padding:4px 6px;
+  border-top:1px solid rgba(255,255,255,.07);flex-shrink:0
+}
+#waiting-chat-input{
+  flex:1;background:rgba(255,255,255,.07);border:none;
+  border-radius:6px;color:#fff;padding:4px 8px;font-size:12px;outline:none
+}
+#waiting-chat-input:focus{background:rgba(255,255,255,.12)}
+#waiting-chat-input::placeholder{color:rgba(255,255,255,.3)}
+#waiting-chat-send{
+  background:#2e7d32;color:#fff;border:none;
+  border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px;flex-shrink:0
+}
+#waiting-chat-send:active{opacity:.8}
+#btn-waiting-voice{
+  width:64px;height:64px;flex-shrink:0;align-self:flex-start;border-radius:10px;
+  background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.2);
+  color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;touch-action:none
+}
+#btn-waiting-voice.ptt-active{background:#1b5e20;border-color:#4caf50;box-shadow:0 0 10px rgba(76,175,80,.6)}
 </style>
 </head>
 <body>
@@ -782,7 +919,6 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
     </div>
     <div class="code-value" id="display-code">------</div>
   </div>
-  <div class="section-label"><span data-i18n="seats_label">Seats</span> (<span id="player-count">0</span>/9)</div>
   <div id="waiting-seats"></div>
   <div id="waiting-players" style="display:none"></div>
   <div class="waiting-footer">
@@ -793,6 +929,25 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
       <button class="btn-settings" id="btn-open-config" style="display:none" data-i18n="btn_settings">⚙ Settings</button>
     </div>
   </div>
+  <div id="waiting-social-row">
+    <div id="waiting-chat-panel">
+      <div id="waiting-chat-log">
+        <div id="waiting-chat-empty">·</div>
+      </div>
+      <div id="waiting-chat-input-row">
+        <input id="waiting-chat-input" maxlength="100" data-i18n="waiting_chat_placeholder" autocomplete="off">
+        <button id="waiting-chat-send">↑</button>
+      </div>
+    </div>
+    <button id="btn-waiting-voice" title="Voice">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="9" y="2" width="6" height="11" rx="3"/>
+        <path d="M5 11a7 7 0 0 0 14 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M9 21h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
 </div>
 
 <!-- ── Game ────────────────────────────────────────────── -->
@@ -800,6 +955,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   <button id="btn-exit-game" title="Exit Game" data-i18n="btn_exit">✕ Exit</button>
   <button id="btn-history" data-i18n="btn_history">📋 History</button>
   <button id="btn-game-settings" data-i18n="btn_game_settings">⚙ Settings</button>
+  <div id="emoji-picker"></div>
   <!-- In-game settings panel (host only) -->
   <div id="game-settings-panel">
     <div class="gsp-header">
@@ -828,6 +984,15 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   </div>
   <div id="table-wrap">
     <div id="table-felt"></div>
+    <!-- Chat panel: always visible, lower-left corner -->
+    <div id="chat-panel">
+      <div id="chat-hint" data-i18n="chat_click_hint"></div>
+      <div id="chat-log"><div id="chat-log-spacer"></div></div>
+      <div id="chat-input-row">
+        <input id="chat-input" maxlength="100" data-i18n="chat_placeholder" autocomplete="off">
+        <button id="chat-send">↑</button>
+      </div>
+    </div>
     <div id="community-area">
       <div id="phase-badge"></div>
       <div id="community-cards"></div>
@@ -844,6 +1009,24 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
       <div id="my-chips"></div>
       <div id="my-cards-row"></div>
       <div id="my-hand-name"></div>
+      <div id="social-btns">
+        <button id="btn-emoji">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="12" cy="12" r="9.5"/>
+            <circle cx="9" cy="10.5" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="10.5" r="1" fill="currentColor" stroke="none"/>
+            <path d="M7.5 14.5 Q12 18.5 16.5 14.5"/>
+          </svg>
+        </button>
+        <button id="btn-voice-toggle">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="9" y="2" width="6" height="11" rx="3"/>
+            <path d="M5 11a7 7 0 0 0 14 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M9 21h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
     </div>
     <div id="action-row">
       <button class="action-btn" id="btn-fold" disabled data-i18n="btn_fold">Fold</button>
@@ -1076,6 +1259,13 @@ const TRANSLATIONS = {
     spectator_choose_hint:'Click an empty seat to join next hand',
     community_placeholder:'Community Cards',
     seat_loan: n => `Loan ${n}`,
+    btn_chat:'💬 Chat', btn_emoji:'😊 Emoji',
+    btn_voice_join:'🎤 Voice', btn_voice_leave:'🔇 Leave',
+    btn_mute:'🔇 Mute', btn_unmute:'🎤 Unmute',
+    chat_placeholder:'Type a message...', chat_send:'Send',
+    waiting_chat_placeholder:'Chat...',
+    chat_click_hint:'· tap to view chat ·',
+    voice_no_support:'Voice chat not supported by this browser',
   },
   zh: {
     page_title:'德州扑克',
@@ -1159,6 +1349,13 @@ const TRANSLATIONS = {
     spectator_choose_hint:'请点击空位入座，下一局参与游戏',
     community_placeholder:'公共牌',
     seat_loan: n => `借${n}`,
+    btn_chat:'💬 聊天', btn_emoji:'😊 表情',
+    btn_voice_join:'🎤 语音', btn_voice_leave:'🔇 离开',
+    btn_mute:'🔇 静音', btn_unmute:'🎤 取消静音',
+    chat_placeholder:'发送消息...', chat_send:'发送',
+    waiting_chat_placeholder:'发消息...',
+    chat_click_hint:'· 点击查看聊天 ·',
+    voice_no_support:'您的浏览器不支持语音聊天',
   }
 };
 
@@ -1676,6 +1873,52 @@ function initSocket() {
     if (!document.getElementById('game').classList.contains('active')) showScreen('game');
     renderGame(state);
   });
+
+  // ── Emoji ──────────────────────────────────────────────
+  socket.on('emoji_msg', ({ playerId, emoji }) => {
+    showEmojiBubble(playerId, emoji);
+  });
+
+  // ── Chat ───────────────────────────────────────────────
+  socket.on('chat_msg', ({ playerId, name, text }) => {
+    appendChatMsg(name, text, playerId === myId);
+  });
+
+  // ── WebRTC signaling ───────────────────────────────────
+  socket.on('webrtc_signal', async ({ fromPlayerId, signal }) => {
+    if (!voiceActive) return;
+    let pc = voicePeers.get(fromPlayerId);
+
+    if (signal.type === 'offer') {
+      if (!pc) pc = createPeerConnection(fromPlayerId);
+      await pc.setRemoteDescription(new RTCSessionDescription(signal));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit('webrtc_signal', { toPlayerId: fromPlayerId, signal: { type: 'answer', ...answer } });
+    } else if (signal.type === 'answer') {
+      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(signal));
+    } else if (signal.type === 'ice') {
+      if (pc) await pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(() => {});
+    }
+  });
+
+  // ── Voice join/leave ───────────────────────────────────
+  socket.on('voice_join', async ({ playerId }) => {
+    if (!voiceActive || !localStream) return;
+    // We are in voice: send offer to new joiner
+    const pc = createPeerConnection(playerId);
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('webrtc_signal', { toPlayerId: playerId, signal: { type: 'offer', ...offer } });
+  });
+
+  socket.on('voice_leave', ({ playerId }) => {
+    removePeer(playerId);
+  });
+
+  socket.on('voice_speaking', ({ playerId, speaking }) => {
+    setSeatMic(playerId, speaking);
+  });
 }
 
 // ── Lobby actions ──────────────────────────────────────────
@@ -1748,14 +1991,14 @@ document.getElementById('btn-start').addEventListener('click', () => {
 
 // ── Waiting room render ────────────────────────────────────
 function renderWaiting(info) {
-  document.getElementById('player-count').textContent = info.playerCount;
+  // player-count is now rendered inside tableHtml above
 
   // Render seat table
   const seatsEl = document.getElementById('waiting-seats');
   const seats = info.seats || [];
   const amHost = info.hostId === myId;
 
-  let tableHtml = '<div id="waiting-seat-table">';
+  let tableHtml = `<div id="waiting-seat-table"><div style="position:absolute;top:0;left:0;font-size:10px;color:rgba(255,255,255,.5);z-index:5;letter-spacing:.5px">${t('seats_label')} <span id="player-count">${info.playerCount}</span>/9</div>`;
   for (let i = 0; i < 9; i++) {
     const seat = seats[i] || { seatIndex: i, playerId: null, name: null };
     const [lp, tp] = WAIT_SEAT_POS[i];
@@ -1879,13 +2122,28 @@ function renderGame(state) {
   const standingBanner = document.getElementById('standing-banner');
   const bottomPanel = document.getElementById('bottom-panel');
   const buyinBannerBtn = document.getElementById('btn-buyin-banner');
+  const socialBtns = document.getElementById('social-btns');
   if (state.isSpectator) {
-    bottomPanel.style.display = 'none';
     if (state.isStanding) {
-      // Standing player: show "choose a seat" banner
+      // Standing mid-hand: show social buttons (will be greyed below), hide everything else
+      bottomPanel.style.display = 'flex';
+      document.getElementById('my-chips').style.display = 'none';
+      document.getElementById('my-cards-row').style.display = 'none';
+      document.getElementById('my-hand-name').style.display = 'none';
       banner.classList.remove('visible');
       standingBanner.classList.add('visible');
       buyinBannerBtn.style.display = 'none';
+    } else if (state.mySeatIndex !== null) {
+      // Seated pending: show social buttons, hide play controls
+      bottomPanel.style.display = 'flex';
+      document.getElementById('my-chips').style.display = 'none';
+      document.getElementById('my-cards-row').style.display = 'none';
+      document.getElementById('my-hand-name').style.display = 'none';
+    } else {
+      bottomPanel.style.display = 'none';
+    }
+    if (state.isStanding) {
+      // banner already set above
     } else if (state.isBrokeSpectator && state.canBuyIn) {
       // Broke spectator: show buy-in button in banner
       standingBanner.classList.remove('visible');
@@ -1911,11 +2169,18 @@ function renderGame(state) {
     standingBanner.classList.remove('visible');
     buyinBannerBtn.style.display = 'none';
     bottomPanel.style.display = 'flex';
+    document.getElementById('my-chips').style.display = '';
+    document.getElementById('my-cards-row').style.display = '';
+    document.getElementById('my-hand-name').style.display = '';
   }
 
-  // Stand-up button visibility
+  // Grey social buttons when standing (covers both pendingStandUp and actual standingPlayer)
+  socialBtns.style.opacity = state.isStanding ? '0.3' : '';
+  socialBtns.style.pointerEvents = state.isStanding ? 'none' : '';
+
+  // Stand-up button: hide when already standing
   const standUpBtn = document.getElementById('btn-stand-up');
-  standUpBtn.style.display = state.canStandUp ? 'block' : 'none';
+  standUpBtn.style.display = (state.canStandUp && !state.isStanding) ? 'block' : 'none';
 
   // In-game settings button (host only)
   document.getElementById('btn-game-settings').style.display =
@@ -1942,9 +2207,12 @@ function renderGame(state) {
       state.myTotalLoaned > 0 ? t('my_chips_loaned', state.myTotalLoaned) : t('first_buyin');
   } else {
     buyinPanel.style.display = 'none';
-    if (!document.getElementById('raise-panel').style.display ||
-        document.getElementById('raise-panel').style.display === 'none') {
+    if (!state.isSpectator &&
+        (!document.getElementById('raise-panel').style.display ||
+         document.getElementById('raise-panel').style.display === 'none')) {
       actionRow.style.display = 'flex';
+    } else if (state.isSpectator) {
+      actionRow.style.display = 'none';
     }
   }
 
@@ -2142,6 +2410,8 @@ function renderSeats(state) {
     const div = document.createElement('div');
     div.className = classes;
     div.style.cssText = `left:${left}%;top:${top}%`;
+    div.dataset.playerId = player.id;
+    if (speakingPlayers.has(player.id)) div.classList.add('seat-mic-active');
     const loanText = player.totalLoaned > 0 ? `<span class="seat-loan">${t('seat_loan', player.totalLoaned)}</span>` : '';
     const betText = player.roundBet > 0 ? `<span class="seat-bet">+${player.roundBet}</span>` : '';
     div.innerHTML = `
@@ -2151,6 +2421,7 @@ function renderSeats(state) {
           <div class="seat-avatar">${esc(player.name.charAt(0).toUpperCase())}</div>
           ${actionBadge}
           <div class="seat-role-pin">${roles}</div>
+          <div class="seat-mic-indicator"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 8.5a5.5 5.5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></div>
         </div>
         ${miniCards}
       </div>
@@ -2597,6 +2868,248 @@ document.getElementById('btn-close-history').addEventListener('click', () => {
   document.getElementById('history-panel').classList.remove('visible');
 });
 
+// ── Emoji bubbles ───────────────────────────────────────────
+const EMOJI_LIST = ['😂','😤','🤔','🤨','😎','😱','🙏','💪','😢','🎉','💸'];
+
+function initEmojiPicker() {
+  const picker = document.getElementById('emoji-picker');
+  picker.innerHTML = EMOJI_LIST.map(e => `<span>${e}</span>`).join('');
+  picker.querySelectorAll('span').forEach(span => {
+    span.addEventListener('click', () => {
+      socket.emit('send_emoji', { emoji: span.textContent });
+      closeEmojiPicker();
+    });
+  });
+}
+
+function showEmojiBubble(playerId, emoji) {
+  if (!gameState) return;
+  const mySeat = gameState.mySeatIndex ?? myLastSeatIndex ?? 0;
+  const player = gameState.players.find(p => p.id === playerId);
+  if (!player || player.seatIndex === null) return;
+  const slot = (player.seatIndex - mySeat + 9) % 9;
+  const [lp, tp] = SEAT_POS[slot];
+  const wrap = document.getElementById('table-wrap');
+  const el = document.createElement('div');
+  el.className = 'emoji-bubble';
+  el.textContent = emoji;
+  el.style.left = lp + '%';
+  el.style.top = tp + '%';
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 2900);
+}
+
+function closeEmojiPicker() {
+  const picker = document.getElementById('emoji-picker');
+  if (picker.style.display !== 'flex') return;
+  picker.classList.remove('visible');
+  picker.classList.add('closing');
+  picker.addEventListener('animationend', () => {
+    picker.style.display = 'none';
+    picker.classList.remove('closing');
+  }, { once: true });
+}
+
+document.getElementById('btn-emoji').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (gameState?.isStanding) return;
+  const picker = document.getElementById('emoji-picker');
+  if (picker.style.display === 'flex') { closeEmojiPicker(); return; }
+  // Position picker above the emoji button using viewport coords (position:fixed)
+  const rect = e.currentTarget.getBoundingClientRect();
+  picker.style.display = 'flex';
+  // Measure picker width after making it visible, then center above button
+  const pw = picker.offsetWidth || 160;
+  const left = Math.max(4, Math.min(window.innerWidth - pw - 4,
+    rect.left + rect.width / 2 - pw / 2));
+  picker.style.left = left + 'px';
+  picker.style.top = '';
+  picker.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+  // Trigger animation (remove then re-add class to replay)
+  picker.classList.remove('visible');
+  requestAnimationFrame(() => picker.classList.add('visible'));
+});
+
+document.addEventListener('click', (e) => {
+  const picker = document.getElementById('emoji-picker');
+  if (!picker.contains(e.target) && e.target.id !== 'btn-emoji') {
+    closeEmojiPicker();
+  }
+});
+
+// ── Text chat ───────────────────────────────────────────────
+let _chatHideTimer = null;
+function _chatShow() {
+  const panel = document.getElementById('chat-panel');
+  panel.classList.remove('chat-hidden');
+  clearTimeout(_chatHideTimer);
+  _chatHideTimer = setTimeout(() => {
+    panel.classList.add('chat-hidden');
+    panel.classList.remove('chat-open');
+  }, 30000);
+}
+
+function appendChatMsg(name, text) {
+  const rowHtml = `<span class="chat-name">${esc(name)}</span><span class="chat-text">${esc(text)}</span>`;
+
+  // Game screen chat log
+  const log = document.getElementById('chat-log');
+  const row = document.createElement('div');
+  row.className = 'chat-row';
+  row.innerHTML = rowHtml;
+  log.appendChild(row);
+  while (log.querySelectorAll('.chat-row').length > 60) log.querySelector('.chat-row').remove();
+  log.scrollTop = log.scrollHeight;
+  _chatShow();
+
+  // Waiting room chat log
+  const wlog = document.getElementById('waiting-chat-log');
+  if (wlog) {
+    document.getElementById('waiting-chat-empty')?.remove();
+    const wrow = document.createElement('div');
+    wrow.className = 'chat-row';
+    wrow.innerHTML = rowHtml;
+    wlog.appendChild(wrow);
+    while (wlog.querySelectorAll('.chat-row').length > 60) wlog.querySelector('.chat-row').remove();
+    wlog.scrollTop = wlog.scrollHeight;
+  }
+}
+
+document.getElementById('chat-panel').addEventListener('click', () => {
+  const panel = document.getElementById('chat-panel');
+  const wasHidden = panel.classList.contains('chat-hidden');
+  _chatShow();
+  const hasMessages = panel.querySelectorAll('.chat-row').length > 0;
+  if (!wasHidden || !hasMessages) {
+    panel.classList.add('chat-open');
+    document.getElementById('chat-input').focus();
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('chat-panel').contains(e.target)) {
+    document.getElementById('chat-panel').classList.remove('chat-open');
+  }
+});
+
+function sendChatMsg() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  socket.emit('chat_msg', { text });
+}
+
+document.getElementById('chat-send').addEventListener('click', sendChatMsg);
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendChatMsg();
+});
+
+// ── WebRTC voice chat (Push-to-Talk) ───────────────────────
+let voiceActive = false;
+let localStream = null;
+const voicePeers = new Map(); // playerId -> RTCPeerConnection
+const speakingPlayers = new Set(); // playerIds currently mic-active (PTT)
+
+const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+function createPeerConnection(remoteId) {
+  const pc = new RTCPeerConnection(RTC_CONFIG);
+
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  }
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate) {
+      socket.emit('webrtc_signal', { toPlayerId: remoteId, signal: { type: 'ice', candidate: e.candidate } });
+    }
+  };
+
+  pc.ontrack = (e) => {
+    const audio = new Audio();
+    audio.srcObject = e.streams[0];
+    audio.autoplay = true;
+    pc._remoteAudio = audio;
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      removePeer(remoteId);
+    }
+  };
+
+  voicePeers.set(remoteId, pc);
+  return pc;
+}
+
+function removePeer(remoteId) {
+  const pc = voicePeers.get(remoteId);
+  if (!pc) return;
+  pc.close();
+  if (pc._remoteAudio) { pc._remoteAudio.srcObject = null; }
+  voicePeers.delete(remoteId);
+  setSeatMic(remoteId, false);
+}
+
+function setSeatMic(playerId, on) {
+  const seat = document.querySelector(`.seat[data-player-id="${playerId}"]`);
+  if (seat) {
+    seat.classList.toggle('seat-mic-active', on);
+  }
+  if (on) speakingPlayers.add(playerId);
+  else speakingPlayers.delete(playerId);
+}
+
+// PTT: start speaking
+async function pttStart() {
+  if (gameState?.isStanding) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showToast(t('voice_no_support')); return;
+  }
+  // Acquire mic on first press
+  if (!localStream) {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      // Start muted — only unmute while button is held
+      localStream.getAudioTracks().forEach(tr => { tr.enabled = false; });
+    } catch {
+      showToast('Microphone access denied'); return;
+    }
+  }
+  // Join voice channel if first time
+  if (!voiceActive) {
+    voiceActive = true;
+    socket.emit('voice_join');
+  }
+  // Unmute and broadcast
+  localStream.getAudioTracks().forEach(tr => { tr.enabled = true; });
+  socket.emit('voice_speaking', { speaking: true });
+  setSeatMic(myId, true);
+  document.getElementById('btn-voice-toggle').classList.add('ptt-active');
+  document.getElementById('btn-waiting-voice')?.classList.add('ptt-active');
+}
+
+// PTT: stop speaking
+function pttStop() {
+  if (!localStream) return;
+  localStream.getAudioTracks().forEach(tr => { tr.enabled = false; });
+  socket.emit('voice_speaking', { speaking: false });
+  setSeatMic(myId, false);
+  document.getElementById('btn-voice-toggle').classList.remove('ptt-active');
+  document.getElementById('btn-waiting-voice')?.classList.remove('ptt-active');
+}
+
+const voiceBtn = document.getElementById('btn-voice-toggle');
+voiceBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  voiceBtn.setPointerCapture(e.pointerId);
+  pttStart();
+});
+voiceBtn.addEventListener('pointerup', (e) => { e.preventDefault(); pttStop(); });
+voiceBtn.addEventListener('pointercancel', (e) => { e.preventDefault(); pttStop(); });
+voiceBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+
 // ── i18n application ───────────────────────────────────────
 function applyI18n() {
   document.title = t('page_title');
@@ -2620,6 +3133,32 @@ document.getElementById('name-input').addEventListener('input', function() {
 
 initSocket();
 initSounds();
+initEmojiPicker();
+_chatShow(); // panel visible on entry; auto-hides after 30s of inactivity
+
+// ── Waiting room chat ───────────────────────────────────
+function sendWaitingChatMsg() {
+  const input = document.getElementById('waiting-chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  socket.emit('chat_msg', { text });
+}
+document.getElementById('waiting-chat-send').addEventListener('click', sendWaitingChatMsg);
+document.getElementById('waiting-chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendWaitingChatMsg();
+});
+
+// ── Waiting room voice (PTT, reuse same pttStart/pttStop) ─
+const waitingVoiceBtn = document.getElementById('btn-waiting-voice');
+waitingVoiceBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  waitingVoiceBtn.setPointerCapture(e.pointerId);
+  pttStart();
+});
+waitingVoiceBtn.addEventListener('pointerup', (e) => { e.preventDefault(); pttStop(); });
+waitingVoiceBtn.addEventListener('pointercancel', (e) => { e.preventDefault(); pttStop(); });
+waitingVoiceBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ── Service Worker registration ─────────────────────────
 if ('serviceWorker' in navigator) {
