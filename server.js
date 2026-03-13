@@ -366,6 +366,12 @@ io.on('connection', (socket) => {
         if (remaining.length === 0) rooms.delete(curRoom);
       }
       // Mid-game: player stays connected to game logic; standing kick timer handles final removal.
+      // Special case: waitingForBuyIn (only 1 player left, no active hand) — dissolve if no one remains
+      if (game.waitingForBuyIn) {
+        const anyConnected = [...game.players, ...game.pendingPlayers, ...game.standingPlayers]
+          .some(p => !p.disconnected);
+        if (!anyConnected) rooms.delete(curRoom);
+      }
     }, GRACE_MS);
   });
 });
