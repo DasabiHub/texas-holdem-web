@@ -280,10 +280,11 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 }
 #my-area{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;width:100%;position:relative}
 #my-info-row{display:none}
-#my-center-group{display:flex;align-items:center;gap:10px;justify-content:center}
-#my-chips{font-size:13px;color:#FFD700;font-weight:700;flex-shrink:0;min-width:60px;text-align:right}
-#my-hand-name{font-size:12px;color:rgba(255,255,255,.6);flex-shrink:0;min-width:60px;text-align:left;align-self:flex-start;padding-top:6px}
-#my-cards-row{display:flex;gap:10px;min-height:76px;align-items:center;flex-shrink:0}
+#my-left{display:flex;justify-content:flex-end;padding-right:8px}
+#my-right{display:flex;justify-content:space-between;align-items:flex-start;padding-left:8px;align-self:stretch}
+#my-chips{font-size:13px;color:#FFD700;font-weight:700}
+#my-hand-name{font-size:12px;color:rgba(255,255,255,.6);padding-top:2px}
+#my-cards-row{display:flex;gap:10px;min-height:76px;align-items:center;justify-content:center}
 #action-row{display:flex;align-items:center;justify-content:center;gap:14px;width:100%}
 .action-btn{
   border:none;border-radius:50%;cursor:pointer;
@@ -894,7 +895,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 /* ── Social buttons (right column of my-area grid) */
 #social-btns{
   display:flex;flex-direction:row;gap:8px;align-items:center;
-  flex-shrink:0;justify-content:flex-end
+  flex-shrink:0;justify-content:flex-end;align-self:center
 }
 #btn-emoji,#btn-voice-toggle{
   width:48px;height:48px;border-radius:50%;
@@ -1103,13 +1104,13 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   <div id="pending-end-notice" data-i18n="pending_end">Host has requested to end the game — settling after this hand</div>
   <div id="bottom-panel">
     <div id="my-area">
-      <div></div>
-      <div id="my-center-group">
+      <div id="my-left">
         <div id="my-chips"></div>
-        <div id="my-cards-row"></div>
-        <div id="my-hand-name"></div>
       </div>
-      <div id="social-btns">
+      <div id="my-cards-row"></div>
+      <div id="my-right">
+        <div id="my-hand-name"></div>
+        <div id="social-btns">
         <button id="btn-emoji">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <circle cx="12" cy="12" r="9.5"/>
@@ -1126,6 +1127,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
             <path d="M9 21h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </button>
+      </div>
       </div>
     </div>
     <div id="action-row">
@@ -1897,10 +1899,9 @@ function miniCardHtml(card, revealDelay = 0, large = false) {
 let _actx = null;
 function actx() {
   if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
-  if (_actx.state === 'suspended') _actx.resume();
+  if (_actx.state === 'suspended' || _actx.state === 'interrupted') _actx.resume();
   return _actx;
 }
-document.addEventListener('click', () => { if (_actx && _actx.state === 'suspended') _actx.resume(); }, { passive: true });
 
 const SOUNDS = {};
 
@@ -1929,6 +1930,7 @@ function _playBuf(buf, volume = 1) {
   if (!buf) return;
   try {
     const ctx = actx();
+    if (ctx.state === 'suspended' || ctx.state === 'interrupted') ctx.resume();
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const g = ctx.createGain();
@@ -2763,10 +2765,11 @@ function startTimer(deadline) {
   }, 200);
 }
 
-// When tab becomes visible again, re-sync timer from last known state
+// When tab becomes visible again, re-sync timer and resume AudioContext
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && gameState) {
-    startTimer(gameState.timerDeadline);
+  if (document.visibilityState === 'visible') {
+    if (_actx && (_actx.state === 'suspended' || _actx.state === 'interrupted')) _actx.resume();
+    if (gameState) startTimer(gameState.timerDeadline);
   }
 });
 
@@ -3421,8 +3424,17 @@ document.getElementById('name-input').addEventListener('input', function() {
 });
 
 initSocket();
-initSounds();
 initEmojiPicker();
+
+// ── Deferred audio init: wait for first user gesture (iOS requirement) ──
+let _soundsInitialized = false;
+document.addEventListener('click', () => {
+  if (!_soundsInitialized) {
+    _soundsInitialized = true;
+    initSounds();
+  }
+  if (_actx && (_actx.state === 'suspended' || _actx.state === 'interrupted')) _actx.resume();
+}, { passive: true });
 _chatShow(); // panel visible on entry; auto-hides after 30s of inactivity
 
 // ── Waiting room chat ───────────────────────────────────
