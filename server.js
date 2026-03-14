@@ -102,6 +102,11 @@ function kickDisconnectedPlayer(playerId, roomCode) {
   game.kickPlayer(playerId);
   sessions.delete(playerId);
   io.to(roomCode).emit('player_kicked', { playerId, name: standingP.name });
+
+  // If the room is now completely empty (all players kicked/left), dissolve it
+  const anyRemaining = game.players.length || game.pendingPlayers.length ||
+    game.standingPlayers.length || game.brokeSpectators.length;
+  if (!anyRemaining) { codeIndex.delete(game.displayCode); rooms.delete(roomCode); }
 }
 
 io.on('connection', (socket) => {

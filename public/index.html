@@ -68,8 +68,17 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 
 /* ── Game Screen ─────────────────────────────────────────── */
 #game{position:relative;background:#0d2b1e}
-#btn-exit-game{
+#top-right-controls{
   position:absolute;top:8px;right:8px;z-index:30;
+  display:flex;align-items:center;gap:6px
+}
+#room-code-badge{
+  background:transparent;border:none;
+  padding:3px 8px;white-space:nowrap;
+  font-size:10px;color:rgba(255,255,255,.7)
+}
+#room-code-badge .badge-code{color:rgba(255,255,255,.38);letter-spacing:.8px;margin-left:4px}
+#btn-exit-game{
   background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);
   border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;
   padding:4px 10px;cursor:pointer
@@ -982,7 +991,10 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 
 <!-- ── Game ────────────────────────────────────────────── -->
 <div id="game" class="screen">
-  <button id="btn-exit-game" title="Exit Game" data-i18n="btn_exit">✕ Exit</button>
+  <div id="top-right-controls">
+    <div id="room-code-badge"></div>
+    <button id="btn-exit-game" title="Exit Game" data-i18n="btn_exit">✕ Exit</button>
+  </div>
   <button id="btn-history" data-i18n="btn_history">📋 History</button>
   <button id="btn-game-settings" data-i18n="btn_game_settings">⚙ Settings</button>
   <div id="emoji-picker"></div>
@@ -1251,6 +1263,7 @@ const TRANSLATIONS = {
     confirm_private:'Switch to private? The room code will be regenerated — share the new code with your friends.',
     cfg_host_only:'Only the host can change settings',
     info_starting:'Starting chips', info_blinds:'Blinds', info_buyin:'Max buy-in',
+    info_room_type:'Room', room_public:'🌐 Public', room_private:'🔒 Private',
     btn_start:'Start Game', waiting_for_host:'Waiting for host to start...',
     btn_exit:'✕ Exit', btn_history:'📋 History', btn_end_game:'⏹ End Game',
     btn_game_settings:'⚙ Settings', gsp_next_hand:'Next hand',
@@ -1344,6 +1357,7 @@ const TRANSLATIONS = {
     confirm_private:'切换为私密房间后，房间代码将会更换，请将新代码分享给朋友。确认切换？',
     cfg_host_only:'仅房主可修改设置',
     info_starting:'起手筹码', info_blinds:'盲注', info_buyin:'最大买入',
+    info_room_type:'房间', room_public:'🌐 公开', room_private:'🔒 私密',
     btn_start:'开始游戏', waiting_for_host:'等待房主开始游戏…',
     btn_exit:'✕ 退出', btn_history:'📋 历史', btn_end_game:'⏹ 结束游戏',
     btn_game_settings:'⚙ 设置', gsp_next_hand:'下一局生效',
@@ -1463,7 +1477,7 @@ const SESSION_KEY = 'poker_session';
 
 // ── State ──────────────────────────────────────────────────
 let socket;
-let myId = null, myName = '', roomCode = null, displayCode = null;
+let myId = null, myName = '', roomCode = null, displayCode = null, roomIsPrivate = false;
 let gameState = null;
 let timerInterval = null;
 let raiseMin = 0, raiseMax = 0;
@@ -1491,6 +1505,14 @@ function clearSession() {
 // ── UI helpers ─────────────────────────────────────────────
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function rankLabel(r) { return r===11?'J':r===12?'Q':r===13?'K':r===14?'A':String(r); }
+
+function updateRoomBadge() {
+  const el = document.getElementById('room-code-badge');
+  if (!el) return;
+  const code = displayCode || roomCode || '';
+  if (!code) { el.innerHTML = ''; return; }
+  el.innerHTML = `${roomIsPrivate ? t('room_private') : t('room_public')}<span class="badge-code">${code}</span>`;
+}
 
 function showConfirm(msg, onOk) {
   const overlay = document.getElementById('confirm-overlay');
@@ -1940,6 +1962,8 @@ function initSocket() {
       displayCode = info.displayCode;
       document.getElementById('display-code').textContent = displayCode;
     }
+    if (info.isPrivate !== undefined) roomIsPrivate = info.isPrivate;
+    updateRoomBadge();
     if (document.getElementById('waiting').classList.contains('active')) {
       renderWaiting(info);
     }
@@ -2132,6 +2156,10 @@ function _updateRoomInfoBar(info) {
     <div class="room-info-item">
       <div class="room-info-val">${mx.toLocaleString()}</div>
       <div class="room-info-lbl">${t('info_buyin')}</div>
+    </div>
+    <div class="room-info-item">
+      <div class="room-info-val">${info.isPrivate ? t('room_private') : t('room_public')}</div>
+      <div class="room-info-lbl">${t('info_room_type')}</div>
     </div>`;
 }
 
@@ -2156,6 +2184,7 @@ function _syncConfigModal(info) {
 
 // ── Game render ────────────────────────────────────────────
 function renderGame(state) {
+  if (state.isPrivate !== undefined) { roomIsPrivate = state.isPrivate; updateRoomBadge(); }
   const isWaiting = state.phase === 'waiting';
 
   // 只要切入 preflop（首局、每局开始、重连）就触发发牌动画
