@@ -84,13 +84,59 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
   padding:4px 10px;cursor:pointer
 }
 #btn-exit-game:active{background:rgba(180,0,0,.5);color:#fff}
-#btn-history{
+#top-left-controls{
   position:absolute;top:8px;left:8px;z-index:30;
+  display:flex;gap:6px;align-items:center
+}
+#btn-history,#btn-rules{
   background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);
   border-radius:8px;color:rgba(255,255,255,.65);font-size:12px;
   padding:4px 10px;cursor:pointer
 }
-#btn-history:active{background:rgba(255,255,255,.12);color:#fff}
+#btn-history:active,#btn-rules:active{background:rgba(255,255,255,.12);color:#fff}
+
+/* ── Rules panel ──────────────────────────────────────── */
+#rules-overlay{
+  position:absolute;inset:0;background:rgba(0,0,0,.72);
+  display:none;align-items:center;justify-content:center;z-index:55;padding:14px
+}
+#rules-overlay.visible{display:flex;animation:result-in .3s cubic-bezier(.34,1.4,.64,1)}
+.rules-box{
+  background:linear-gradient(160deg,#1b3525,#0d2018);
+  border:1px solid rgba(255,255,255,.14);border-radius:18px;
+  width:100%;max-width:340px;
+  display:flex;flex-direction:column;overflow:hidden;
+  max-height:calc(100dvh - 28px);
+  box-shadow:0 16px 48px rgba(0,0,0,.7)
+}
+#rules-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px 8px;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0
+}
+#rules-header-title{font-size:14px;font-weight:700}
+#btn-close-rules{
+  background:rgba(255,255,255,.1);border:none;border-radius:50%;
+  width:28px;height:28px;color:#fff;font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center
+}
+#rules-list{display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:none}
+#rules-list::-webkit-scrollbar{display:none}
+.rule-row{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 12px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0
+}
+.rule-row:last-child{border-bottom:none}
+.rule-row:first-child{background:rgba(255,215,0,.07)}
+.rule-rank{
+  font-size:10px;font-weight:800;color:rgba(255,255,255,.28);
+  width:14px;text-align:center;flex-shrink:0
+}
+.rule-row:first-child .rule-rank{color:#FFD700}
+.rule-body{display:flex;flex-direction:column;gap:0px;flex:1;min-width:0}
+.rule-name{font-size:11px;font-weight:700;color:#fff}
+.rule-row:first-child .rule-name{color:#FFD700}
+.rule-desc{font-size:9px;color:rgba(255,255,255,.35)}
+.rule-cards{font-size:11px;font-weight:800;letter-spacing:.3px;white-space:nowrap;flex-shrink:0}
 #table-wrap{position:relative;width:100%;flex:1;min-height:0}
 #table-felt{
   position:absolute;top:8%;left:3%;width:94%;height:82%;
@@ -860,6 +906,12 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
 }
 #btn-emoji:active{background:rgba(255,255,255,.25)}
 #btn-voice-toggle.ptt-active{background:#1b5e20;border-color:#4caf50;box-shadow:0 0 10px rgba(76,175,80,.6)}
+/* ── Seat host crown ──────────────────────────────────────── */
+.seat-host-crown{
+  position:absolute;bottom:-3px;left:-3px;z-index:6;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.8))
+}
+
 /* ── Seat mic indicator ───────────────────────────────────── */
 .seat-mic-indicator{
   position:absolute;bottom:-3px;right:-3px;z-index:6;
@@ -995,7 +1047,10 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
     <div id="room-code-badge"></div>
     <button id="btn-exit-game" title="Exit Game" data-i18n="btn_exit">✕ Exit</button>
   </div>
-  <button id="btn-history" data-i18n="btn_history">📋 History</button>
+  <div id="top-left-controls">
+    <button id="btn-history" data-i18n="btn_history">📋 History</button>
+    <button id="btn-rules" data-i18n="btn_rules">📖 Rules</button>
+  </div>
   <button id="btn-game-settings" data-i18n="btn_game_settings">⚙ Settings</button>
   <div id="emoji-picker"></div>
   <!-- In-game settings panel (host only) -->
@@ -1118,6 +1173,17 @@ input[type=text]::placeholder{color:rgba(255,255,255,.3)}
       <button id="btn-close-history">✕</button>
     </div>
     <div id="history-list"></div>
+  </div>
+
+  <!-- Hand rankings panel (compact modal overlay) -->
+  <div id="rules-overlay">
+    <div class="rules-box">
+      <div id="rules-header">
+        <span id="rules-header-title" data-i18n="rules_header">Hand Rankings</span>
+        <button id="btn-close-rules">✕</button>
+      </div>
+      <div id="rules-list"></div>
+    </div>
   </div>
 
   <!-- Buy-in amount modal (shared by all buy-in buttons) -->
@@ -1265,7 +1331,18 @@ const TRANSLATIONS = {
     info_starting:'Starting chips', info_blinds:'Blinds', info_buyin:'Max buy-in',
     info_room_type:'Room', room_public:'🌐 Public', room_private:'🔒 Private',
     btn_start:'Start Game', waiting_for_host:'Waiting for host to start...',
-    btn_exit:'✕ Exit', btn_history:'📋 History', btn_end_game:'⏹ End Game',
+    btn_exit:'✕ Exit', btn_history:'📋 History', btn_rules:'📖 Rules', btn_end_game:'⏹ End Game',
+    rules_header:'Hand Rankings',
+    rule_desc_royal_flush:'A K Q J 10 of the same suit',
+    rule_desc_straight_flush:'Five consecutive cards, same suit',
+    rule_desc_four_of_a_kind:'Four cards of the same rank',
+    rule_desc_full_house:'Three of a kind + a pair',
+    rule_desc_flush:'Any five cards of the same suit',
+    rule_desc_straight:'Five consecutive cards, any suit',
+    rule_desc_three_of_a_kind:'Three cards of the same rank',
+    rule_desc_two_pair:'Two different pairs',
+    rule_desc_one_pair:'Two cards of the same rank',
+    rule_desc_high_card:'None of the above — highest card plays',
     btn_game_settings:'⚙ Settings', gsp_next_hand:'Next hand',
     pending_end:'Host has requested to end the game — settling after this hand',
     btn_fold:'Fold', btn_raise:'Raise',
@@ -1359,7 +1436,18 @@ const TRANSLATIONS = {
     info_starting:'起手筹码', info_blinds:'盲注', info_buyin:'最大买入',
     info_room_type:'房间', room_public:'🌐 公开', room_private:'🔒 私密',
     btn_start:'开始游戏', waiting_for_host:'等待房主开始游戏…',
-    btn_exit:'✕ 退出', btn_history:'📋 历史', btn_end_game:'⏹ 结束游戏',
+    btn_exit:'✕ 退出', btn_history:'📋 历史', btn_rules:'📖 牌型', btn_end_game:'⏹ 结束游戏',
+    rules_header:'牌型规则',
+    rule_desc_royal_flush:'同花色 A K Q J 10',
+    rule_desc_straight_flush:'同花色连续五张',
+    rule_desc_four_of_a_kind:'四张相同点数',
+    rule_desc_full_house:'三条加一对',
+    rule_desc_flush:'五张同花色',
+    rule_desc_straight:'连续五张，花色不限',
+    rule_desc_three_of_a_kind:'三张相同点数',
+    rule_desc_two_pair:'两对不同点数',
+    rule_desc_one_pair:'两张相同点数',
+    rule_desc_high_card:'无以上牌型，最大牌决胜',
     btn_game_settings:'⚙ 设置', gsp_next_hand:'下一局生效',
     pending_end:'房主已申请结束游戏，本局结束后进行结算',
     btn_fold:'弃牌', btn_raise:'加注',
@@ -2413,6 +2501,7 @@ function renderSeats(state) {
 
     // Occupied seat — render player
     const isMe = player.id === state.myId;
+    const isHost = player.id === state.hostId;
     const isWinner = winnerIds.has(player.id);
 
     // Detect action changes and show corresponding animation
@@ -2514,6 +2603,7 @@ function renderSeats(state) {
           <div class="seat-avatar">${esc(player.name.charAt(0).toUpperCase())}</div>
           ${actionBadge}
           <div class="seat-role-pin">${roles}</div>
+          ${isHost ? '<div class="seat-host-crown"><svg viewBox="0 0 28 18" width="14" height="24" xmlns="http://www.w3.org/2000/svg"><path d="M1 16L5 5L10 11L14 1L18 11L23 5L27 16Z" fill="#FFD700" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/><rect x="1" y="14.5" width="26" height="3" rx="1" fill="#FFD700" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg></div>' : ''}
           <div class="seat-mic-indicator"><svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 8.5a5.5 5.5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></div>
         </div>
         ${miniCards}
@@ -2966,6 +3056,46 @@ function renderHistoryPanel() {
     }).join('');
   }).join('');
 }
+
+// ── Hand rankings panel ────────────────────────────────────
+const HAND_RULES = [
+  { key:'royal_flush',     cards:[[14,'s'],[13,'s'],[12,'s'],[11,'s'],[10,'s']] },
+  { key:'straight_flush',  cards:[[9,'h'],[8,'h'],[7,'h'],[6,'h'],[5,'h']] },
+  { key:'four_of_a_kind',  cards:[[14,'s'],[14,'h'],[14,'d'],[14,'c'],[13,'s']] },
+  { key:'full_house',      cards:[[14,'s'],[14,'h'],[14,'d'],[13,'s'],[13,'h']] },
+  { key:'flush',           cards:[[14,'s'],[11,'s'],[9,'s'],[6,'s'],[3,'s']] },
+  { key:'straight',        cards:[[14,'s'],[13,'h'],[12,'d'],[11,'c'],[10,'s']] },
+  { key:'three_of_a_kind', cards:[[14,'s'],[14,'h'],[14,'d'],[13,'s'],[12,'h']] },
+  { key:'two_pair',        cards:[[14,'s'],[14,'h'],[13,'d'],[13,'c'],[12,'s']] },
+  { key:'one_pair',        cards:[[14,'s'],[14,'h'],[13,'d'],[12,'c'],[11,'s']] },
+  { key:'high_card',       cards:[[14,'s'],[13,'h'],[12,'d'],[11,'c'],[9,'s']] },
+];
+
+function renderRulesPanel() {
+  const list = document.getElementById('rules-list');
+  list.innerHTML = HAND_RULES.map((hand, i) => {
+    const cardsHtml = hand.cards.map(([rank, suit]) => {
+      const col = (suit === 'h' || suit === 'd') ? '#e57373' : '#e8e8e8';
+      return `<span style="color:${col}">${rankLabel(rank)}${SUIT_SYM[suit]}</span>`;
+    }).join(' ');
+    return `<div class="rule-row">
+      <div class="rule-rank">${i + 1}</div>
+      <div class="rule-body">
+        <div class="rule-name">${esc(t(hand.key))}</div>
+        <div class="rule-cards">${cardsHtml}</div>
+        <div class="rule-desc">${esc(t('rule_desc_' + hand.key))}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('btn-rules').addEventListener('click', () => {
+  renderRulesPanel();
+  document.getElementById('rules-overlay').classList.add('visible');
+});
+document.getElementById('btn-close-rules').addEventListener('click', () => {
+  document.getElementById('rules-overlay').classList.remove('visible');
+});
 
 document.getElementById('btn-history').addEventListener('click', () => {
   renderHistoryPanel();

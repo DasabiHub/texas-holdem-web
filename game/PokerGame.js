@@ -1167,6 +1167,7 @@ class PokerGame {
         (!!myPlayer && myPlayer.chips === 0 && isShowdown)
       ),
       isHost: playerId === this.hostId,
+      hostId: this.hostId,
       isPrivate: this.isPrivate,
       nextHandAt: this.nextHandAt,
       handHistory: this.handHistory,
